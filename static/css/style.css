@@ -1,0 +1,359 @@
+/* k-WM project page.
+
+   A figure-first article. The outline hangs in the left margin and the figures run down a centred column.
+   On wide screens (>= 1400px, the "rail" breakpoint, mirrored in site.js) the paper's text for each figure
+   sits in a narrower third column on the right and stays in view while its figure is on screen; a text much
+   longer than its figure becomes a box that scrolls on its own under the pointer, so the page's length is set
+   by the figures. Nothing moves when something is opened: the appendix slides in over the text column. On
+   narrower screens each text opens as a sheet from its "Read the text" button instead.
+
+   Order: tokens · base · outline · article · figures and tables · clips · notes · sheets and appendix ·
+   one column (< 1400px) · three columns (>= 1400px) · phones and tablets (<= 1000px) · reduced motion. */
+
+/* ── Tokens ── */
+:root {
+  /* Colour: slate neutrals taken from the figures' axis grey; one blue accent (the figures' "ours" blue). */
+  --bg: #ffffff;
+  --panel: #f5f6f8;
+  --shade: #eef0f4;
+  --ink: #1a1f2b;
+  --ink-2: #414958;
+  --muted: #5b6472;
+  --rule: #e2e5ea;
+  --rule-strong: #b9c0ca;
+  --accent: #2563c9;
+  --accent-soft: #ebf1fc;
+  --best: #c2185b;
+  --plate: #ffffff;          /* figures keep a white plate in dark mode */
+  --plate-pad: 0rem;
+  --shadow: rgba(20, 30, 50, 0.16);
+
+  /* Type: serif for reading, sans for everything that labels or tabulates. */
+  --serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Layout. The three-column block below overrides most of these. */
+  --col: 62rem;              /* widest the figure column gets */
+  --colw: var(--col);        /* its actual width (narrower when the text column is showing) */
+  --rail: 0rem;              /* text column; only on wide screens */
+  --nav-w: 13rem;            /* outline */
+  --gap: clamp(2.5rem, 4vw, 4.5rem);   /* between columns */
+  --edge: 2rem;              /* to the window edge */
+  --sheet-w: clamp(27rem, 38vw, 38rem);  /* appendix and note sheets */
+  --sheet-pad: 1.75rem;
+  /* The column is centred when the margin can hold the outline, otherwise it sits just right of it. */
+  --col-left: max(calc(var(--edge) + var(--nav-w) + var(--gap)), calc((100vw - var(--col)) / 2));
+}
+/* Dark palette, once for the system setting and once for an explicit toggle; keep the two in sync. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171c; --panel: #1b1f26; --shade: #222831; --ink: #e6e9ee; --ink-2: #c2c8d2; --muted: #9aa3b0;
+    --rule: #2a3039; --rule-strong: #4a5360; --accent: #86b0f5; --accent-soft: #1c2942; --best: #f47aa5;
+    --plate: #ffffff; --plate-pad: 0.75rem; --shadow: rgba(0, 0, 0, 0.55); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171c; --panel: #1b1f26; --shade: #222831; --ink: #e6e9ee; --ink-2: #c2c8d2; --muted: #9aa3b0;
+  --rule: #2a3039; --rule-strong: #4a5360; --accent: #86b0f5; --accent-soft: #1c2942; --best: #f47aa5;
+  --plate: #ffffff; --plate-pad: 0.75rem; --shadow: rgba(0, 0, 0, 0.55); color-scheme: dark;
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+img, video { max-width: 100%; height: auto; display: block; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.katex { font-size: 1.1em; }
+.nw { white-space: nowrap; }   /* keeps punctuation with the math it follows (set by site.js) */
+
+h1, h2, h3, h4 { text-wrap: balance; margin: 0; font-weight: 600; }
+h1 { font-size: clamp(2rem, 3.6vw, 2.625rem); line-height: 1.14; letter-spacing: -0.012em; }
+h2 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -0.008em; margin-bottom: 1.1rem; }
+h3 { font-size: 1.25rem; line-height: 1.3; margin: 2.75rem 0 0.6rem; }
+h2 + h3, .head + h3 { margin-top: 0.5rem; }
+h4 { font-family: var(--sans); font-size: 0.875rem; line-height: 1.3; margin: 0 0 0.5rem; }
+
+/* ── Outline in the left margin ── */
+.sidenav {
+  position: fixed; top: 0; bottom: 0; left: calc(var(--col-left) - var(--gap) - var(--nav-w)); width: var(--nav-w);
+  padding: 4.4rem 0 2rem; overflow-y: auto; scrollbar-width: none;
+  font-family: var(--sans); font-size: 1rem;
+  display: flex; flex-direction: column; gap: 1.6rem;
+}
+.brand a { font-family: var(--serif); font-size: 1.5rem; line-height: 1.2; font-weight: 600; color: var(--ink); text-decoration: none; }
+.sidenav nav { display: flex; flex-direction: column; gap: 1.75rem; }
+.sidenav ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--rule); }
+.sidenav li a {
+  display: block; padding: 0.45rem 0 0.45rem 1rem; margin-left: -1px; border-left: 1px solid transparent;
+  color: var(--muted); text-decoration: none; line-height: 1.3; transition: color 0.16s, border-color 0.16s;
+}
+.sidenav li a:hover { color: var(--ink); }
+.sidenav li a.current { color: var(--ink); border-left-color: var(--ink); }
+.nav-label { font-size: 0.72rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.55rem; }
+.nav-toggle { display: none; }
+
+/* ── Article ── */
+.page { padding-left: var(--col-left); padding-right: var(--edge); }
+main { max-width: var(--col); padding-block: 4rem 6rem; }
+main > section { position: relative; padding-block: 3rem; }
+main > section:first-child { padding-top: 0; }
+main p, main li, .appendix p, .appendix li, figcaption { text-align: justify; hyphens: auto; }
+main p, .appendix p { margin: 0 0 1.05rem; }
+main ul, main ol, .appendix ul { margin: 0 0 1.05rem; padding-left: 1.4rem; }
+main li { margin-bottom: 0.4rem; }
+main li::marker { color: var(--muted); }
+.venue { font-family: var(--sans); color: var(--muted); margin: 1rem 0 2.5rem; font-size: 1rem; text-align: left; }
+
+/* Section head: the title, and on the right the button that opens its text */
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; margin: 0 0 1rem; }
+.head h2, .head h3 { margin: 0; min-width: 0; }
+a.more {
+  font-family: var(--sans); font-size: 0.8125rem; font-weight: 500; line-height: 1.2; white-space: nowrap; text-decoration: none;
+  color: var(--ink); padding: 0.4rem 0.8rem; border: 1px solid var(--rule-strong); border-radius: 6px;
+  transition: background-color 0.16s, color 0.16s, border-color 0.16s;
+}
+a.more::after { content: "\00a0\203A"; }
+a.more:hover { border-color: var(--ink); }
+a.more[aria-current] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+/* One-sentence stand-in for a note; ".keep" stays even when the note is showing */
+main p.lede { font-size: 1.1875rem; line-height: 1.55; max-width: 50rem; margin: 0 0 1.5rem; text-align: left; hyphens: manual; text-wrap: pretty; }
+
+/* Rows: the figure side (.fig) and its note. One column until the screen is wide enough for both. */
+.row + .row, .row + .clips { margin-top: 3rem; }
+.fig { min-width: 0; }
+.fig > :first-child { margin-top: 0; }
+.fig > figure:last-child { margin-bottom: 0; }
+
+/* ── Figures and tables ── */
+figure { margin: 1.5rem 0 2.25rem; }
+figure .plate { background: var(--plate); border-radius: 6px; padding: var(--plate-pad); }
+figcaption { font-family: var(--sans); font-size: 0.9375rem; line-height: 1.6; color: var(--ink-2); margin-top: 0.9rem; }
+figcaption b { color: var(--ink); font-weight: 600; }
+.eq { overflow-x: auto; overflow-y: hidden; padding-block: 0.25rem; margin: 0 0 1.05rem; }
+
+.table-scroll { overflow-x: auto; container-type: inline-size; }
+table.results {
+  width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 0.875rem; line-height: 1.4;
+  font-variant-numeric: tabular-nums; border-top: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink);
+}
+table.results th, table.results td { padding: 0.5rem 0.6rem; text-align: center; white-space: nowrap; }
+table.results thead th { font-weight: 600; border-bottom: 1px solid var(--rule-strong); }
+table.results thead tr:first-child th { border-bottom: 0; padding-bottom: 0.1rem; }
+table.results thead tr:only-child th { border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.5rem; }
+table.results thead tr:first-child th:first-child, table.results tbody td:first-child, table.results td[rowspan] + td, table.results th.l { text-align: left; }
+table.results tbody tr.group th { text-align: left; font-style: italic; font-weight: 400; color: var(--muted); padding-top: 0.75rem; border-top: 1px solid var(--rule-strong); }
+table.results tbody tr.group:first-child th { border-top: 0; }
+table.results tr.ours td { background: var(--shade); }
+table.results .sd { font-size: 0.72rem; color: var(--muted); margin-left: 0.15rem; }
+table.results .sep { border-left: 1px solid var(--rule); }
+.best { color: var(--best); }
+/* A table in a narrow column tightens before it has to scroll */
+@container (max-width: 54rem) {
+  table.results { font-size: 0.8125rem; }
+  table.results th, table.results td { padding: 0.45rem 0.4rem; }
+  table.results .sd { font-size: 0.66rem; margin-left: 0.1rem; }
+}
+@container (max-width: 50rem) {
+  table.results { font-size: 0.75rem; }
+  table.results th, table.results td { padding: 0.4rem 0.3rem; }
+  table.results .sd { font-size: 0.6rem; margin-left: 0.08rem; }
+}
+
+/* Links that open an appendix: dotted underline, as for a side note */
+a.app-link { text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 0.22em; white-space: nowrap; }
+a.app-link:hover { text-decoration-style: solid; }
+
+/* ── Planning clips ── */
+.pickers { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; margin: 0.4rem 0 1.75rem; }
+.segmented { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule-strong); border-radius: 6px; overflow: hidden; font-family: var(--sans); font-size: 0.9rem; }
+.segmented button { border: 0; background: none; color: var(--muted); padding: 0.45rem 1.1rem; cursor: pointer; font: inherit; }
+.segmented button + button { border-left: 1px solid var(--rule-strong); }
+.segmented button:hover { color: var(--ink); }
+.segmented button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 500; }
+
+.env-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.25rem; }
+.env h4 { font-family: inherit; font-size: 1.0625rem; margin-bottom: 0.15rem; }
+.env p { font-family: var(--sans); font-size: 0.875rem; line-height: 1.5; color: var(--muted); margin-bottom: 0.9rem; text-align: left; hyphens: manual; }
+.quad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.9rem; }
+@media (max-width: 640px) { .quad { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.clip { min-width: 0; }
+.clip-label { font-family: var(--sans); font-size: 0.8125rem; font-weight: 500; color: var(--muted); margin-bottom: 0.35rem; }
+.clip-label.ours { color: var(--accent); font-weight: 600; }
+.clip-label .katex { font-size: 1em; }
+/* A slot holds a video once its file exists (site.js), and a placeholder until then */
+.slot { aspect-ratio: 1 / 1; max-width: 100%; border-radius: 6px; overflow: hidden; position: relative; }
+.slot.wide { aspect-ratio: 1804 / 814; }
+.slot video, .slot img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--plate); }
+.slot .empty {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem;
+  border: 1px dashed var(--rule-strong); border-radius: 6px; background: var(--panel);
+  font-family: var(--sans); font-size: 0.8125rem; color: var(--muted); text-align: center; padding: 0.75rem;
+}
+.slot .empty code { font-family: var(--mono); font-size: 0.66rem; line-height: 1.4; overflow-wrap: anywhere; opacity: 0.85; }
+main .still-note, .appendix .still-note { text-align: left; hyphens: manual; font-family: var(--sans); font-size: 0.8125rem; color: var(--muted); margin: 0.5rem 0 0; }
+.still-note code { font-family: var(--mono); font-size: 0.75rem; }
+
+/* ── Notes: the paper's text for a figure ── */
+.note { font-size: 1rem; line-height: 1.6; color: var(--ink-2); }
+.note p { margin-bottom: 0.85rem; }
+.note ul { padding-left: 1.1rem; }
+.note li { margin-bottom: 0.35rem; }
+.note-body > :first-child, .note-title + * { margin-top: 0; }
+.note h3 {
+  font-family: var(--sans); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted); margin: 1.5rem 0 0.4rem;
+}
+.note .key { color: var(--ink); font-weight: 600; }
+.note .eq { margin-bottom: 0.85rem; }
+.note .katex-display { margin: 0.5em 0; }
+.note-title { display: none; }   /* the figure side carries the heading; the title shows only in a sheet */
+
+/* ── Sheets: a panel that slides in from the right over the page. The appendix is always one; a note is one
+      only on screens without a text column (site.js gives it the class "sheet" then, and adds the bar). ── */
+.sheet-bar {
+  display: none; align-items: center; justify-content: space-between; gap: 1rem; flex: none;
+  padding: 0.7rem 1rem 0.7rem var(--sheet-pad); border-bottom: 1px solid var(--rule);
+  font-family: var(--sans); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+.sheet-bar button {
+  border: 1px solid var(--rule-strong); background: none; color: var(--ink); border-radius: 6px; padding: 0.3rem 0.8rem;
+  font: inherit; font-size: 0.8125rem; letter-spacing: 0; text-transform: none; cursor: pointer;
+}
+.sheet-bar button:hover { border-color: var(--ink); }
+.js .sheet {
+  position: fixed; inset: 0 0 0 auto; width: min(var(--sheet-w), 100vw); z-index: 20;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--ink); border-left: 1px solid var(--rule); box-shadow: -16px 0 40px var(--shadow);
+  transform: translateX(105%); visibility: hidden; transition: transform 0.25s ease, visibility 0.25s;
+}
+.js .sheet.open { transform: none; visibility: visible; }
+.js .sheet .sheet-bar { display: flex; }
+.js .sheet .sheet-body, .js .sheet .note-body {
+  position: relative; overflow-y: auto; padding: 2.25rem var(--sheet-pad) 3rem; font-size: 1rem; line-height: 1.6;
+}
+.js .sheet .note-title { display: block; font-size: 1.4rem; margin-bottom: 1rem; }
+
+/* Appendix: one section at a time in the sheet; plain sections at the bottom of the page without scripts */
+.appendix h2 { font-size: 1.4rem; }
+.appendix h3 { font-size: 1.1rem; margin-top: 1.75rem; }
+.appendix h3[id] { scroll-margin-top: 1.25rem; }
+.appendix figcaption { font-size: 0.875rem; }
+html:not(.js) .appendix { max-width: var(--col); padding-bottom: 4rem; }
+html:not(.js) .app { padding-top: 3rem; }
+.js .app { display: none; }
+.js .app.open { display: block; }
+.js .appendix figure { margin: 1.5rem 0; }
+.js .appendix table.results { font-size: 0.8125rem; }
+.js .appendix table.results td { white-space: normal; }
+/* Previous / next at the foot of each appendix section (built by site.js) */
+.app-foot {
+  display: flex; justify-content: space-between; gap: 1.5rem; margin-top: 3rem; padding-top: 1.1rem; border-top: 1px solid var(--rule);
+  font-family: var(--sans); font-size: 0.875rem; line-height: 1.35;
+}
+.app-foot a { color: var(--ink); text-decoration: none; max-width: 48%; }
+.app-foot a:hover { color: var(--accent); }
+.app-foot .next { text-align: right; margin-left: auto; }
+.app-foot small { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+
+/* ── One column: no text column, so the notes are sheets (with scripts) or plain blocks (without) ── */
+@media (max-width: 1399px) {
+  .hero .abstract { margin-top: 3.75rem; }
+  html:not(.js) .note { margin-top: 1.5rem; border-left: 1px solid var(--rule); padding-left: 1.25rem; }
+  html:not(.js) a.more[href^="#text-"] { display: none; }   /* nothing to open */
+  .note.dup { display: none; }   /* repeats the lede exactly */
+}
+
+/* ── Three columns: the text column ── */
+@media (min-width: 1400px) {
+  :root {
+    --rail: clamp(23rem, 26vw, 30rem);
+    --nav-w: clamp(11.5rem, 12vw, 13rem);
+    --gap: clamp(1.75rem, 2.6vw, 3.75rem);
+    --edge: clamp(1.5rem, 1.7vw, 2rem);
+    --colw: min(var(--col), calc(100vw - 2 * var(--edge) - var(--nav-w) - 2 * var(--gap) - var(--rail)));
+    /* the three columns are centred as a group */
+    --col-left: max(calc(var(--edge) + var(--nav-w) + var(--gap)), calc((100vw + var(--nav-w) - var(--colw) - var(--rail)) / 2));
+  }
+  /* main spans the figure and text columns; rows and the hero reach into the text column with a negative margin */
+  main { max-width: calc(var(--col) + var(--gap) + var(--rail)); padding-right: calc(var(--gap) + var(--rail)); }
+  .row, .hero {
+    display: grid; grid-template-columns: minmax(0, 1fr) var(--rail); column-gap: var(--gap); align-items: start;
+    margin-right: calc(-1 * (var(--gap) + var(--rail)));
+  }
+  a.more[href^="#text-"] { display: none; }
+
+  /* Whichever side is shorter stays in view while the other scrolls (--stick is set per element by site.js) */
+  .fig, .note { position: sticky; top: var(--stick, 2rem); }
+  .note {
+    font-size: clamp(0.9375rem, 0.55rem + 0.42vw, 1rem); color: var(--ink-2);
+    border-left: 1px solid var(--rule); padding: 0.5rem 0 0 1.25rem;
+  }
+  .row.sub .note { padding-top: 0.15rem; }
+  /* A text much longer than its figure scrolls inside a box (--note-max, set by site.js: the figure's height, or
+     most of the window when the figure is short) rather than stretching the page; fades show there is more.
+     The box reaches into the empty right margin so its scrollbar sits beside the text, not over it. */
+  .note-body {
+    max-height: min(var(--note-max, 100vh), calc(100vh - 4.5rem)); overflow-y: auto; overscroll-behavior-y: auto;
+    margin-right: -1rem; padding-right: 1rem;
+    scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
+  }
+  .note-body.more-below { -webkit-mask-image: linear-gradient(#000 calc(100% - 3.5rem), transparent); mask-image: linear-gradient(#000 calc(100% - 3.5rem), transparent); }
+  .note-body.more-above { -webkit-mask-image: linear-gradient(transparent, #000 3.5rem); mask-image: linear-gradient(transparent, #000 3.5rem); }
+  .note-body.more-above.more-below {
+    -webkit-mask-image: linear-gradient(transparent, #000 3.5rem, #000 calc(100% - 3.5rem), transparent);
+    mask-image: linear-gradient(transparent, #000 3.5rem, #000 calc(100% - 3.5rem), transparent);
+  }
+
+  /* Hero: title, venue and Figure 1 in the figure column; the figure's caption in the text column, beside the abstract */
+  .hero > h1, .hero > .venue, .hero .plate, .hero .abstract { grid-column: 1; }
+  .hero figure { display: contents; }
+  .hero .plate { grid-row: 3; margin-bottom: 2.25rem; }
+  .hero .abstract { grid-row: 4; }
+  .hero figcaption { grid-row: 4; grid-column: 2; align-self: start; margin-top: 0; padding: 0.5rem 0 0 1.25rem; border-left: 1px solid var(--rule); }
+
+  /* The appendix takes over the text column exactly, so it never covers a figure */
+  .js .appendix { width: max(27rem, calc(100vw - var(--col-left) - var(--colw) - var(--gap) / 2)); box-shadow: none; }
+}
+
+/* ── Phones and tablets: the outline becomes a top bar ── */
+@media (max-width: 1000px) {
+  :root { --sheet-pad: 1rem; }
+  body { font-size: 1.0625rem; line-height: 1.65; }
+  .sidenav {
+    position: sticky; top: env(safe-area-inset-top, 0px); left: auto; bottom: auto; width: auto; z-index: 10;
+    background: var(--bg); font-size: 0.95rem;
+    flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem;
+    padding: 0.6rem 1rem; border-bottom: 1px solid var(--rule); overflow: visible;
+  }
+  .brand a { font-size: 1.2rem; }
+  .nav-toggle { display: block; border: 1px solid var(--rule-strong); background: none; color: var(--ink); border-radius: 4px; padding: 0.3rem 0.75rem; font: inherit; cursor: pointer; }
+  .sidenav nav { flex-basis: 100%; gap: 1rem; padding-block: 0.5rem; }
+  .js .sidenav nav { display: none; }
+  .js .sidenav.open nav { display: flex; }
+  .sidenav li a { padding-block: 0.35rem; }
+  .page { padding-inline: 1rem; }
+  main { padding-block: 1.75rem 3rem; }
+  main > section { padding-block: 2.25rem; }
+  main p, main li, .appendix p, .appendix li, figcaption { text-align: left; }
+  h2 { font-size: 1.5rem; }
+  main p.lede { font-size: 1.0625rem; }
+  html { scroll-padding-top: 4rem; }
+  .env-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .js .sheet, a.more { transition: none; }
+}

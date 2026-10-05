@@ -1,36 +1,596 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>k-WM</title>
-
-  <style>
-    body {
-      max-width: 800px;
-      margin: 80px auto;
-      padding: 0 24px;
-      font-family: Arial, sans-serif;
-      text-align: center;
-      color: #222;
-      background: #fff;
-    }
-
-    h1 {
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-
-    p {
-      color: #666;
-      font-size: 18px;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>k-WM Project Page</title>
+<meta name="description" content="k-WM: Predicting k Steps at Once for Long-Horizon Planning with World Models.">
+<link rel="stylesheet" href="static/fonts/fonts.css">
+<link rel="stylesheet" href="static/katex/katex.min.css">
+<link rel="stylesheet" href="static/css/style.css">
+<script>document.documentElement.classList.add("js");</script>
 </head>
-
 <body>
-  <h1><i>k</i>-WM</h1>
-  <p>Anonymous authors</p>
-  <p>Project page coming soon.</p>
+
+<header class="sidenav">
+  <div class="brand"><a href="#top"><i>k</i>-WM</a></div>
+  <button class="nav-toggle" type="button" aria-expanded="false">Sections</button>
+  <nav aria-label="Sections">
+    <div class="nav-group">
+      <ul>
+        <li><a href="#top">Overview</a></li>
+        <li><a href="#abstract">Abstract</a></li>
+        <li><a href="#method">Method</a></li>
+        <li><a href="#results">Planning results</a></li>
+        <li><a href="#rollout-quality">Rollout quality</a></li>
+        <li><a href="#speed">Planning speed</a></li>
+        <li><a href="#analysis">Analysis</a></li>
+      </ul>
+    </div>
+    <div class="nav-group">
+      <p class="nav-label">Appendix</p>
+      <ul>
+        <li><a data-app href="#app-curriculum">A · Loss weighting</a></li>
+        <li><a data-app href="#app-rollout-decode">B · Rollout decoding</a></li>
+        <li><a data-app href="#app-theory">C · Toy model</a></li>
+        <li><a data-app href="#app-baselines">D · Baselines</a></li>
+        <li><a data-app href="#app-hyperparams">E · Hyperparameters</a></li>
+        <li><a data-app href="#app-env">F · Environments</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<div class="page">
+<main>
+
+<!-- Figure-first page. Each section is a row: heading, figure and full caption on the figure side (class "fig"),
+     the paper's text for it in an aside (class "note"). On wide screens the note sits beside the figure; on
+     narrower ones it opens as a sheet from the "Read the text" button and the one-sentence lede stands in.
+     Note class "dup" = repeats the lede, so it only shows beside the figure. Row class "sub" = a subsection.
+     See README.md. -->
+
+<!-- ───────────── Overview: on wide screens the abstract sits beside Figure 1's caption ───────────── -->
+<section id="top">
+  <div class="hero">
+    <h1><i>k</i>-WM: Predicting <i>k</i> Steps at Once for <span class="nw">Long-Horizon</span> Planning with World Models</h1>
+    <p class="venue">Anonymous authors · ICLR 2027 submission</p>
+    <figure>
+      <div class="plate"><img src="static/img/fig1_overview.png" alt="Overview figure: the four environments, next-step versus k-WM inference, and planning performance against planning time on Push-T." width="2200" height="729"></div>
+      <figcaption><b>Figure 1. Overview.</b> We introduce <i>k</i>-WM, a minimal extension that lets a transformer-based world model predict \(k\) future latents from an action sequence in one forward pass instead of rolling out autoregressively. <b>Left:</b> we evaluate <i>k</i>-WM on four environments, Push-T, Maze, Cube, and Reacher. <b>Middle:</b> comparison of next-step WM and <i>k</i>-WM inference: the former needs \(k\) sequential predictor calls, the latter a single call over the padded input sequence. <b>Right:</b> long-horizon gradient-based planning on Push-T (\(H{=}10\)): <i>k</i>-WM models (filled) achieve better performance and run faster than their next-step baselines (hollow), across two world model classes.</figcaption>
+    </figure>
+    <div class="abstract" id="abstract">
+      <h2>Abstract</h2>
+      <p>Latent world models have become an appealing approach to visual control, enabling goal-conditioned optimization at test time and generalization across tasks with a single model. In practice, however, planning success remains limited to short horizons, and gradient-based planners driven by autoregressive rollouts still underperform sampling-based methods, despite their potential to optimize action sequences efficiently through model gradients. We hypothesize that two properties of next-step prediction contribute to these limitations: autoregressive rollouts compound prediction errors, and planning gradients must traverse a chain of nested model calls. We study a simple alternative: predicting the entire future sequence in a single forward pass. We introduce <i>k</i>-WM, a minimal extension to transformer-based JEPA world models: a multi-horizon training objective and input layout that let the predictor map a variable-length action sequence directly to the corresponding sequence of future latent states in a single forward pass. We apply <i>k</i>-WM to three classes of JEPA world models and evaluate on four environments. Overall, <i>k</i>-WM improves gradient-based planning by 37% and sampling-based planning by 15% over the existing next-step world models it extends. Our analysis shows that the gains cannot be explained by parallel rollout alone: improvements persist under autoregressive inference and coincide with substantial changes in the learned representation. Parallel prediction additionally reduces long-horizon inference cost. Together, <i>k</i>-WM offers a simple, broadly applicable path to more accurate and efficient long-horizon control.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── Method ───────────── -->
+<section id="method">
+  <div class="row">
+    <div class="fig">
+      <div class="head"><h2>Method</h2><a class="more" href="#text-method">Read the text</a></div>
+      <p class="lede"><i>k</i>-WM changes only the predictor input layout and the training objective of a JEPA world model, leaving the encoder and predictor architecture unchanged.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig2_architecture.png" alt="Architecture: next-step world model training and autoregressive inference on the left, k-WM single-pass training and inference on the right." width="2200" height="1272"></div>
+        <figcaption><b>Figure 2. Architecture.</b> Left: standard next-step WM training with teacher forcing and autoregressive inference. Right: <i>k</i>-WM, which predicts multiple future latents in a single forward pass during both training and inference. In the diagram, <i>c</i> is the number of context latents the predictor is given (<i>c</i> = 3 here) and <i>k</i> is the number of future latents predicted: one call per step for the next-step model, one call for all <i>k</i> in <i>k</i>-WM. Actions are concatenated with the latent tokens, and the last context latent is repeated to fill the future input positions. The inference process visualized here provides only one ground-truth frame, so the remaining history context must be bootstrapped from model predictions.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-method" aria-labelledby="text-method-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-method-title">Method</h2>
+        <p>We distinguish the training horizon \(k\), the number of future targets supervised in each training sequence, from the inference chunk length \(d\), the number of future states produced before feeding model predictions back as context. The planning horizon \(H\) is the total number of model steps optimized by the planner.</p>
+
+        <h3>Encoder</h3>
+        <p>An encoder \(E_\theta\) maps each observation to a latent representation \(z_t=E_\theta(o_t)\), and the dynamics are learned in this latent space. The image observation is encoded by a visual backbone, while proprioceptive information is encoded by a simple MLP; the two encodings are concatenated to form \(z_t\). <i>k</i>-WM is encoder agnostic: the encoder may be a frozen pretrained model or trained end-to-end with the predictor.</p>
+
+        <h3>Predictor</h3>
+        <p>A conventional world model predicts one step at a time and recursively applies the transition model to reach longer horizons. We instead promote the transition function to predict up to \(k\) steps in a single forward pass:</p>
+        <div class="eq">\[
+          (\hat{z}_{t+1},\ldots,\hat{z}_{t+n}) = T_\theta^{k\text{-step}}\left(z_t,\, a_{t:t+n}\right), \quad n\leq k,
+        \]</div>
+        <p>where \(a_{t:t+n}=(a_t,\ldots,a_{t+n-1})\). Setting \(k=1\) recovers the conventional next-step predictor.</p>
+        <p>We implement \(T_\theta^{k\text{-step}}\) as a causal transformer over the temporal axis. Its input begins with a short window of history latents ending in the current latent \(z_t\). Unlike a teacher-forced next-step predictor, whose later input positions contain encoded ground-truth latents, we fill future input positions with copies of the last context latent \(z_t\). Each action is embedded by an MLP and concatenated with the latent at its corresponding position; the future positions therefore share the same latent content but differ in their action and temporal-position information. A causal temporal mask ensures that \(\hat{z}_{t+n}\) depends only on the context and on \(a_{t:t+n}\), and a single forward pass returns the entire predicted trajectory \(\hat{z}_{t+1:t+k}\).</p>
+
+        <h3>Training objective</h3>
+        <p>To predict over multiple horizons, we also promote the loss to a \(k\)-step world-model loss:</p>
+        <div class="eq">\[
+          \mathcal{L}_{\text{wm}}^{k\text{-step}} = \frac{1}{\sum_{m=1}^{k} f(m)} \sum_{n=1}^{k} f(n)\,\left\| \hat{z}_{t+n}-z_{t+n} \right\|.
+        \]</div>
+        <p>Here \(f(n)\) is a loss-weighting profile, which may also vary over training to implement a curriculum (<a class="app-link" href="#app-curriculum">Appendix A</a>). In our experiments we take \(f(n)=1\), weighting every prediction horizon uniformly. To prevent collapse to a trivial constant representation, we optimize \(\mathcal{L}_{\mathrm{wm}}^{k\text{-step}}+\lambda\mathcal{L}_{\mathrm{reg}}\), where the anti-collapse regularizer and its weight depend on the model.</p>
+
+        <h3>Inference and planning</h3>
+        <p>At inference, action sequences longer than \(k\) are processed in chunks of at most \(k\), with predictions from one chunk providing context for the next. Autoregressive rollout is chunk \(d=1\).</p>
+        <p>For planning, given a goal observation \(o_{\text{goal}}\) and an initial observation \(o_0\), we extract the latents \(z_{\text{goal}}\) and \(z_0\), roll out \(z_0\) to \(\hat{z}_H\), and minimize a simple cost with respect to the action sequence:</p>
+        <div class="eq">\[
+          \begin{gathered}
+          \mathcal{C}(a_{0:H}) = \left\| z_{\text{goal}}-\hat{z}_H \right\|, \\
+          \hat{a}_{0:H} = \operatorname*{argmin}_{a_{0:H}} \mathcal{C}(a_{0:H}).
+          \end{gathered}
+        \]</div>
+        <p>We plan open-loop: the model receives only the initial observation (image and proprioception) and the goal, and bootstraps the required history context from its own predictions; the optimized actions are then executed without replanning. We use two planners: the Cross-Entropy Method (CEM) and gradient descent (GD) with Adam (<a class="app-link" href="#app-planning-hyperparam">Appendix E.2</a>).</p>
+
+        <h3>World models we build on</h3>
+        <p>We instantiate <i>k</i>-WM on top of three world model classes and compare each against its next-step counterpart (\(k=1\)) with the same encoder, predictor, and training recipe:</p>
+        <ul>
+          <li><b>DINO-WM:</b> frozen DINOv2 ViT-S patch features, \(z_t\in \mathbb{R}^{16\times16\times 384}\), with no anti-collapse term. The predictor uses a block-causal mask over frames of patch tokens.</li>
+          <li><b>DINO FT:</b> DINOv2 ViT-S fine-tuned end-to-end, with the CLS feature \(z_t\in \mathbb{R}^{1\times384}\) as the latent and a stop-gradient on the training target with an EMA teacher to prevent collapse.</li>
+          <li><b>LeWM:</b> ViT-Tiny encoder, \(z_t\in\mathbb{R}^{1\times 192}\), trained end-to-end with SIGReg (<a class="app-link" href="#app-baselines">Appendix D</a>). Whereas the original LeWM conditions on actions through AdaLN, we concatenate actions with the input latents as in the other instantiations, for both the next-step and the multi-horizon model.</li>
+        </ul>
+        <p>We use a frameskip of 5 frames across all environments and models, baselines included, and three history context frames (<a class="app-link" href="#app-predictor-hyperparam">Appendix E.1</a>). We train with \(k=8\): from a single initial frame, after bootstrapping the history context, one forward pass predicts 10 model steps, or 50 environment steps.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ───────────── Planning results ───────────── -->
+<section id="results">
+  <div class="row">
+    <div class="fig">
+      <div class="head"><h2>Planning results</h2><a class="more" href="#text-results">Read the text</a></div>
+      <p class="lede keep"><i>k</i>-WM matches or beats the next-step model it extends in most settings, and the gain is largest under gradient-based planning.</p>
+
+      <h3>Short horizon</h3>
+      <p class="lede">Multi-horizon training performs on par with or better than its matched next-step baseline across most settings, despite receiving supervision over substantially longer prediction horizons.</p>
+      <figure>
+        <div class="table-scroll">
+          <table class="results">
+            <thead>
+              <tr><th rowspan="2">Method</th><th rowspan="2" class="l">Objective</th><th colspan="4" class="sep">CEM</th><th colspan="4" class="sep">GD</th><th colspan="2" class="sep">Avg. Δ</th></tr>
+              <tr><th class="sep">Push-T</th><th>Maze</th><th>Cube</th><th>Reacher</th><th class="sep">Push-T</th><th>Maze</th><th>Cube</th><th>Reacher</th><th class="sep">CEM</th><th>GD</th></tr>
+            </thead>
+            <tbody>
+              <tr class="group"><th colspan="12"><i>k</i>-WM vs. next-step</th></tr>
+              <tr><td rowspan="2">DINO-WM</td><td>next-step</td>
+                <td class="sep"><b>83.3</b><span class="sd">±1.2</span></td><td><b class="best">92.7</b><span class="sd">±4.2</span></td><td>51.3<span class="sd">±7.0</span></td><td>31.3<span class="sd">±4.6</span></td>
+                <td class="sep">66.0<span class="sd">±3.5</span></td><td>40.0<span class="sd">±6.0</span></td><td><b>58.7</b><span class="sd">±6.4</span></td><td>13.3<span class="sd">±3.1</span></td>
+                <td class="sep"></td><td></td></tr>
+              <tr class="ours"><td><i>k</i>-WM</td>
+                <td class="sep">82.0<span class="sd">±6.9</span></td><td>86.7<span class="sd">±5.0</span></td><td><b>63.3</b><span class="sd">±1.2</span></td><td><b>32.0</b><span class="sd">±5.3</span></td>
+                <td class="sep"><b>70.7</b><span class="sd">±8.1</span></td><td><b>66.7</b><span class="sd">±13.3</span></td><td>56.7<span class="sd">±7.0</span></td><td><b>18.7</b><span class="sd">±3.1</span></td>
+                <td class="sep">+1.3</td><td>+8.7</td></tr>
+              <tr><td rowspan="2">DINO FT</td><td>next-step</td>
+                <td class="sep">78.0<span class="sd">±6.0</span></td><td>62.0<span class="sd">±7.2</span></td><td>50.7<span class="sd">±3.1</span></td><td>42.7<span class="sd">±6.4</span></td>
+                <td class="sep">63.3<span class="sd">±4.2</span></td><td>14.7<span class="sd">±4.2</span></td><td><b>48.7</b><span class="sd">±7.0</span></td><td>44.0<span class="sd">±2.0</span></td>
+                <td class="sep"></td><td></td></tr>
+              <tr class="ours"><td><i>k</i>-WM</td>
+                <td class="sep"><b class="best">90.0</b><span class="sd">±2.0</span></td><td><b>86.7</b><span class="sd">±2.3</span></td><td><b>55.3</b><span class="sd">±1.2</span></td><td><b class="best">86.0</b><sup>†</sup><span class="sd">±3.5</span></td>
+                <td class="sep"><b>83.3</b><span class="sd">±4.6</span></td><td><b>58.0</b><span class="sd">±9.2</span></td><td>47.3<span class="sd">±5.0</span></td><td><b class="best">82.0</b><sup>†</sup><span class="sd">±5.3</span></td>
+                <td class="sep">+21.2</td><td>+25.0</td></tr>
+              <tr><td rowspan="2">LeWM (concat)</td><td>next-step</td>
+                <td class="sep">73.3<span class="sd">±5.8</span></td><td><b>89.3</b><span class="sd">±2.0</span></td><td>49.3<span class="sd">±2.5</span></td><td><b>49.3</b><span class="sd">±5.7</span></td>
+                <td class="sep">74.7<span class="sd">±4.2</span></td><td>17.3<span class="sd">±5.0</span></td><td>48.7<span class="sd">±6.4</span></td><td><b>10.7</b><span class="sd">±4.1</span></td>
+                <td class="sep"></td><td></td></tr>
+              <tr class="ours"><td><i>k</i>-WM</td>
+                <td class="sep"><b class="best">90.0</b><span class="sd">±0.0</span></td><td>82.0<span class="sd">±5.3</span></td><td><b>62.0</b><span class="sd">±3.5</span></td><td>48.0<span class="sd">±4.0</span></td>
+                <td class="sep"><b>83.3</b><span class="sd">±4.2</span></td><td><b>47.3</b><span class="sd">±8.1</span></td><td><b>61.3</b><span class="sd">±3.1</span></td><td><b>10.7</b><span class="sd">±5.0</span></td>
+                <td class="sep">+5.3</td><td>+12.8</td></tr>
+              <tr class="group"><th colspan="12">Prior world models</th></tr>
+              <tr><td colspan="2">LeWM (AdaLN)</td>
+                <td class="sep">87.3<span class="sd">±5.0</span></td><td>79.3<span class="sd">±9.2</span></td><td>64.0<span class="sd">±3.5</span></td><td>24.7<span class="sd">±3.1</span></td>
+                <td class="sep">83.3<span class="sd">±4.2</span></td><td>26.7<span class="sd">±4.2</span></td><td>68.0<span class="sd">±3.5</span></td><td>6.7<span class="sd">±3.1</span></td>
+                <td class="sep"></td><td></td></tr>
+              <tr><td colspan="2">Fast LeWM</td>
+                <td class="sep">86.7<span class="sd">±4.1</span></td><td>79.3<span class="sd">±4.2</span></td><td>58.0<span class="sd">±9.2</span></td><td>17.3<span class="sd">±3.1</span></td>
+                <td class="sep"><span class="best">88.0</span><span class="sd">±5.3</span></td><td>60.0<span class="sd">±0.0</span></td><td>60.7<span class="sd">±5.0</span></td><td>6.7<span class="sd">±3.1</span></td>
+                <td class="sep"></td><td></td></tr>
+              <tr><td colspan="2">Straightening</td>
+                <td class="sep">85.3<span class="sd">±8.3</span></td><td>81.3<span class="sd">±4.2</span></td><td><span class="best">67.3</span><span class="sd">±6.1</span></td><td>8.0<span class="sd">±3.5</span></td>
+                <td class="sep">87.3<span class="sd">±2.3</span></td><td><span class="best">69.3</span><span class="sd">±4.2</span></td><td><span class="best">74.7</span><span class="sd">±1.2</span></td><td>6.0<span class="sd">±2.0</span></td>
+                <td class="sep"></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption><b>Table 1. Short-horizon planning (\(H{=}5\)).</b> Success rate (%) with CEM and gradient descent (GD), mean ± std over 3 seeds × 50 episodes. Top: each world model class with <i>k</i>-WM (shaded) against its next-step version with the same encoder, predictor and training recipe. Bottom: prior world models, re-run with the same planning protocol. <b>Bold</b>: better of each pair; <span class="best">pink</span>: best in the column; <sup>†</sup>: <i>k</i>-WM model rolled out autoregressively (see <a href="#chunk-ablation">Analysis</a>). Avg. Δ: <i>k</i>-WM minus next-step, averaged over environments from unrounded success counts.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-results" aria-labelledby="text-results-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-results-title">Planning results</h2>
+        <p>For Push-T, Cube, and Maze, the goals are taken from expert trajectories. For Reacher, the goal is sampled uniformly in joint space with zero initial velocity. We additionally compare against Temporal Straightening, which plans over straightened DINOv2 patch features, and Fast LeWM, which composes actions on top of the LeWM encoder. All baselines use the same proprioception as our models.</p>
+
+        <h3>Short horizon</h3>
+        <p>The improvement is particularly pronounced for the end-to-end trained encoders, with DINO FT improving by 21.2 and 25.0 percentage points on average under CEM and GD, respectively, and LeWM improving by 5.3 and 12.8 points. <i>k</i>-WM is strongest on Push-T and Reacher, while prior methods remain stronger on Maze and Cube.</p>
+        <p>The frozen-encoder DINO-WM setting helps isolate these effects: multi-horizon training yields little average improvement under CEM but improves GD by 8.7 percentage points. This contrast with the larger gains of DINO FT and LeWM suggests that adapting the encoder to the multi-horizon objective is an important component of the improvement.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="row sub">
+    <div class="fig">
+      <div class="head"><h3>Long horizon</h3><a class="more" href="#text-long">Read the text</a></div>
+      <p class="lede">DINO FT maintains an overall advantage over its next-step counterpart, and multi-horizon LeWM shows a growing advantage over the original AdaLN LeWM as the horizon increases.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig3_long_horizon.png" alt="Success rate against planning horizon 5 to 10 for the four environments, CEM on the top row and gradient descent on the bottom row." width="2200" height="1148"></div>
+        <figcaption><b>Figure 3. Long-horizon planning.</b> Success rate as a function of planning horizon \(H \in \{5,\dots,10\}\) across four environments, using CEM (top) and gradient-based planning (bottom). Solid lines denote <i>k</i>-WM models; dashed lines denote next-step baselines. DINO FT and DINO-WM use the same encoder and predictor architectures within each pair; the LeWM baseline uses the original AdaLN predictor. Curves show mean success rates, with error bars indicating reported uncertainty. Reacher rollout uses \(d=1\).</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-long" aria-labelledby="text-long-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-long-title">Long horizon</h2>
+        <p>Figure 3 extends the results from \(H=5\) to \(H=10\), equivalent to 50 environment steps. At \(H=10\), multi-horizon LeWM improves GD over the original AdaLN LeWM by 29.3 and 28.7 percentage points on Push-T and Maze, respectively. Relative to prior world models, performance remains environment-dependent: Straightening is particularly strong on Push-T and Cube, whereas <i>k</i>-WM models show their clearest advantage on Reacher and increasingly at longer horizons.</p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Planning rollouts: one episode per environment, model class and planner (static/videos/README.txt) -->
+  <div class="clips" id="rollouts">
+    <div class="head"><h3>Planning rollouts</h3><a class="more" href="#app-env">Environments and datasets</a></div>
+    <p class="lede keep">One episode per environment at \(H{=}10\) (50 environment steps): the start and goal frames, then the plan found with the next-step baseline (\(k=1\)) and with <i>k</i>-WM (\(k=8\)), planned once and executed in the simulator without replanning. The frame turns green when the rollout ends at the goal and red when it does not.</p>
+
+    <div class="pickers">
+      <div class="segmented" id="model-picker" role="group" aria-label="World model class">
+        <button type="button" data-model="dinoft" aria-pressed="true">DINO FT</button>
+        <button type="button" data-model="dinowm" aria-pressed="false">DINO-WM</button>
+        <button type="button" data-model="lewm" aria-pressed="false">LeWM</button>
+      </div>
+      <div class="segmented" id="planner-picker" role="group" aria-label="Planner">
+        <button type="button" data-planner="cem" aria-pressed="true">CEM</button>
+        <button type="button" data-planner="gd" aria-pressed="false">GD</button>
+      </div>
+    </div>
+
+    <div class="env-grid">
+      <div class="env">
+        <h4>Push-T</h4>
+        <p>2D manipulation: an agent pushes a T-shaped block to a goal configuration.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="pusht" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="pusht" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="pusht" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="pusht" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Maze</h4>
+        <p>2D navigation: the agent navigates to a goal inside a maze.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="maze" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="maze" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="maze" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="maze" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Cube</h4>
+        <p>3D manipulation: a robot arm picks and places a cube.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="cube" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="cube" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="cube" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="cube" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Reacher</h4>
+        <p>2D control: a two-joint arm reaches a target joint configuration.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="reacher" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="reacher" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="reacher" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="reacher" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── Rollout quality ───────────── -->
+<section id="rollout-quality">
+  <div class="row">
+    <div class="fig">
+      <div class="head"><h2>Open-loop rollout quality</h2><a class="more" href="#text-rollout-quality">Read the text</a></div>
+      <p class="lede"><i>k</i>-WM rolls out more accurately than the next-step baseline in some settings, but this cannot explain all of the gain we see in planning.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig4_rollout_error.png" alt="Probe-decoded state error against rollout step for each environment, k-WM solid and next-step dashed." width="2200" height="747"></div>
+        <figcaption><b>Figure 4. Open-loop rollout error.</b> Error between the ground-truth states and states decoded by a linear probe from the predicted latent, vs. rollout step, on validation trajectories (lower is better). Solid: <i>k</i>-WM models rolled out with the largest chunk size; dashed: next-step baselines. The probe is fit per encoder on its training latents. Band: ±1 standard error over 488 windows for Push-T and 1000 windows for the other environments.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-rollout-quality" aria-labelledby="text-rollout-quality-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-rollout-quality-title">Open-loop rollout quality</h2>
+        <p>Do models that plan better also roll out more accurately? We train a linear probe from the encoder latent to the ground-truth state on the training dataset. We then perform open-loop world model rollouts on the validation trajectories, extract the predicted state with the same probe, and compute its error against the ground-truth state trajectory.</p>
+        <p>For DINO FT and LeWM, decoded state error grows more slowly with rollout horizon than for their next-step counterparts. The advantage does not appear in every setting, however, so it cannot explain all of the gain we see in planning. Visualization of a simple decoder on the frozen encoder for a qualitative comparison is presented in <a class="app-link" href="#app-rollout-decode">Appendix B</a>.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ───────────── Speed ───────────── -->
+<section id="speed">
+  <div class="row">
+    <div class="fig">
+      <div class="head"><h2>Planning speed</h2><a class="more" href="#text-speed">Read the text</a></div>
+      <p class="lede">By reducing the number of sequential predictor calls, <i>k</i>-WM shows a significant planning speed-up, up to 3.3× for long-horizon GD planning.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig5_planning_speed.png" alt="Planning speed-up of k-WM over the next-step baseline, and planning time across models on a log scale." width="2200" height="740"></div>
+        <figcaption><b>Figure 5. Planning speed on Push-T.</b> Planning time is measured in seconds, with compile and bf16, on one L40S. CEM optimizes with 300 samples and 30 iterations; GD optimizes for 500 steps. (a), (b): Speed-up of <i>k</i>-WM over the next-step baseline. (c): Planning time across different models; x-axis is on a logarithmic scale.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-speed" aria-labelledby="text-speed-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-speed-title">Planning speed</h2>
+        <p>We show the timing gain for both the single-token variant LeWM and the heavier patch variant DINO-WM. GD is generally faster than CEM. Our gain for the patch variant is 1.5× at most, but the long planning time of that variant makes it valuable. The largest speed-up, 3.3×, is for long-horizon GD planning.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ───────────── Analysis ───────────── -->
+<section id="analysis">
+  <h2>Analysis</h2>
+
+  <div class="row sub">
+    <div class="fig">
+      <div class="head"><h3 id="horizon-ablation">Choosing the training horizon <i>k</i></h3><a class="more" href="#text-horizon">Read the text</a></div>
+      <p class="lede">Planning performance changes systematically as the prediction horizon increases, and different world model classes and planners exhibit different sensitivities to this choice.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig6_training_horizon.png" alt="Heatmaps of planning success against training sequence length and planning goal horizon for DINO FT and LeWM on Push-T and Reacher." width="2200" height="600"></div>
+        <figcaption><b>Figure 6. Training horizon vs. goal horizon.</b> Planning success rate (%) as a function of the training sequence length (columns) and the planning goal horizon \(H\) (rows), for DINO FT and LeWM on Push-T and Reacher, with CEM. Mean over 3 planning seeds × 50 episodes.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-horizon" aria-labelledby="text-horizon-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-horizon-title">Choosing the training horizon <i>k</i></h2>
+        <p>How far into the future should the model be trained to predict? DINO FT is relatively insensitive to the prediction horizon, whereas LeWM exhibits a substantially sharper response. On Reacher, planning performance increases abruptly at a prediction horizon of five, suggesting threshold-like behavior in the learned representation.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="row sub">
+    <div class="fig">
+      <div class="head"><h3 id="chunk-ablation">Separating multi-horizon training from parallel inference</h3><a class="more" href="#text-chunk">Read the text</a></div>
+      <p class="lede">Avoiding autoregressive rollout alone cannot explain the gains; the long-horizon training objective itself also contributes.</p>
+      <figure>
+        <div class="table-scroll">
+          <table class="results">
+            <thead>
+              <tr><th rowspan="2">Environment</th><th rowspan="2" class="l">Planner</th><th colspan="4" class="sep">Rollout chunk length</th><th colspan="2" class="sep">AR training window</th><th rowspan="2" class="sep">Next-step</th></tr>
+              <tr><th class="sep">1</th><th>2</th><th>4</th><th>6</th><th class="sep">10</th><th>3</th></tr>
+            </thead>
+            <tbody>
+              <tr><td rowspan="2">Push-T</td><td>CEM</td>
+                <td class="sep">47.0<span class="sd">±9.5</span></td><td>52.7<span class="sd">±9.5</span></td><td><b>56.0</b><span class="sd">±5.3</span></td><td>50.0<span class="sd">±5.3</span></td>
+                <td class="sep">48.7<span class="sd">±8.3</span></td><td>46.0<span class="sd">±8.7</span></td><td class="sep">30.7<span class="sd">±9.9</span></td></tr>
+              <tr><td>GD</td>
+                <td class="sep">44.7<span class="sd">±2.3</span></td><td>50.7<span class="sd">±3.1</span></td><td><b>53.3</b><span class="sd">±9.0</span></td><td>38.0<span class="sd">±7.2</span></td>
+                <td class="sep">46.7<span class="sd">±10.3</span></td><td>46.7<span class="sd">±6.4</span></td><td class="sep">24.7<span class="sd">±4.2</span></td></tr>
+              <tr><td rowspan="2">Reacher</td><td>CEM</td>
+                <td class="sep"><b>84.7</b><span class="sd">±4.2</span></td><td>80.7<span class="sd">±5.0</span></td><td>77.3<span class="sd">±7.6</span></td><td>72.0<span class="sd">±2.0</span></td>
+                <td class="sep">76.0<span class="sd">±2.0</span></td><td>58.0<span class="sd">±9.2</span></td><td class="sep">40.7<span class="sd">±10.1</span></td></tr>
+              <tr><td>GD</td>
+                <td class="sep"><b>68.7</b><span class="sd">±1.2</span></td><td>12.7<span class="sd">±2.3</span></td><td>22.0<span class="sd">±5.3</span></td><td>60.7<span class="sd">±1.2</span></td>
+                <td class="sep">51.3<span class="sd">±13.3</span></td><td>22.0<span class="sd">±2.0</span></td><td class="sep">39.3<span class="sd">±6.4</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption><b>Table 2. Rollout and training ablation.</b> Planning success rate (%, ↑) at \(H{=}8\) when varying the inference chunk length \(d\) or autoregressive (AR) training window. Bold: highest mean per row.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-chunk" aria-labelledby="text-chunk-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-chunk-title">Separating multi-horizon training from parallel inference</h2>
+        <p>To separate the effects of multi-horizon training from parallel rollout, we vary the rollout chunk length at inference and compare against models trained autoregressively (defined in <a class="app-link" href="#app-curriculum">Appendix A</a>).</p>
+        <p>Rollout chunk length has a non-monotonic effect: Push-T peaks at an intermediate chunk size, while Reacher is strongly planner-dependent. More importantly, on Push-T the autoregressively trained models substantially outperform the next-step baseline despite retaining autoregressive inference, so parallel inference is not the only source of the gain.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="row sub">
+    <div class="fig">
+      <div class="head"><h3 id="representation">What the multi-horizon objective teaches the encoder</h3><a class="more" href="#text-representation">Read the text</a></div>
+      <p class="lede">Ground-truth state becomes increasingly linearly decodable as the training horizon grows on both Push-T and Reacher. Latent distance also tracks distance in state more faithfully with a longer training horizon: gradually on Push-T, and through a sharp transition on Reacher.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig7_representation.png" alt="Linear probe error and latent distance against state distance for DINO FT and LeWM as the training horizon grows." width="2200" height="980"></div>
+        <figcaption><b>Figure 7. State alignment of the DINO FT (top) and LeWM (bottom) latents vs. training horizon.</b> (a, b) Fraction of the ground-truth state variance that cannot be explained by a linear probe from the latent representation (\(1-R^2\), Push-T states: T keypoints, Reacher states: arm pose), with one dash per trained model. (c, d) Latent squared distance, normalized such that the expected distance between a random pair of frames is 1, versus ground-truth state distance for pairs of frames matched on the remaining state variables (agent position on Push-T, second joint on Reacher). Darker curves indicate longer training horizons.</figcaption>
+      </figure>
+    </div>
+    <aside class="note" id="text-representation" aria-labelledby="text-representation-title">
+      <div class="note-body">
+        <h2 class="note-title" id="text-representation-title">What the multi-horizon objective teaches the encoder</h2>
+        <p>The DINO FT setting lets us isolate how prediction horizon shapes the representation without LeWM's additional latent regularization: its linear-probe error falls steadily as the training horizon grows. LeWM instead exhibits a U-shaped trend, consistent with its greater sensitivity to training horizon in Figure 6.</p>
+        <p>We next ask whether latent distances better reflect task progress. We compare distances between latent states with their ground-truth state distances while matching the remaining state variables. On Push-T, this relationship becomes increasingly monotonic with training horizon. Reacher shows a sharper transition: the second joint is well organized even at short horizons, while the first joint is poorly distinguished near 0° and 180° until the horizon increases. Linear-probe error similarly drops by nearly an order of magnitude around horizon three, with different seeds falling on either side of the transition, preceding the jump in planning success around horizon five (Figure 6).</p>
+        <p>These suggest a threshold-like change in which longer-horizon supervision causes the encoder to retain previously weakly represented state information. A linear stochastic model exhibits an analogous transition, providing one possible mechanism for this behavior (<a class="app-link" href="#app-theory">Appendix C</a>).</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<!-- ───────────── Appendix: a sheet from the right when scripts run, plain sections at the bottom otherwise ───────────── -->
+<aside class="appendix sheet" id="appendix" aria-label="Appendix">
+  <div class="sheet-body">
+
+    <section class="app" id="app-curriculum">
+      <h2>A · Loss weighting curriculum</h2>
+      <p>The \(k\)-step loss weights the error at horizon \(n\) by \(f(n)\), and every result in the main text uses uniform weights, \(f(n)=1\). Here we test whether a non-uniform weighting profile, or a curriculum that changes \(f\) over the course of training, performs better. Since only the relative weight assigned to each horizon matters, we summarize each profile by its mean horizon. In our implementation, the loss also includes one-step predictions at the two teacher-forced history positions, which we count as \(n=1\). We therefore define</p>
+      <div class="eq">\[
+        \bar n(f) = \frac{2f(1)+\sum_{n=1}^{k} n f(n)}{2f(1)+\sum_{m=1}^{k} f(m)}.
+      \]</div>
+      <p>With uniform weights, this gives \(\bar n=1\) for \(k=1\), \(\bar n=2.43\) for \(k=5\), and \(\bar n=3.8\) for \(k=8\).</p>
+      <p><b>Profiles.</b> All weighted arms keep the \(k=8\) window and change only \(f\). We use four one-parameter profiles:</p>
+      <div class="eq">\[
+        \begin{aligned}
+        &amp;\text{cutoff:} &amp;&amp; f_c(n) = \min\!\big(1, \max(0, c-n+1)\big), \quad c\in[1,k], \\
+        &amp;\text{geometric:} &amp;&amp; f_g(n) = g^{n-1}, \quad g\in[0,1], \\
+        &amp;\text{power law:} &amp;&amp; f_p(n) = n^{-p}, \quad p\geq 0, \\
+        &amp;\text{far-only:} &amp;&amp; f_a(n) = \mathbf{1}[n=1] + a\,\mathbf{1}[n=k], \quad a\geq 0.
+        \end{aligned}
+      \]</div>
+      <p>The cutoff profile with \(c=1\) is exactly the next-step objective, and with integer \(c=j\) it is exactly the uniform \(k=j\) objective. The geometric and power-law profiles decay smoothly with \(n\), while the far-only profile trains only on the first and last horizons. Each profile is indexed by \(\bar n\): at every optimization step, we solve by bisection for the parameter (\(c\), \(g\), \(p\), or \(a\)) that produces the target \(\bar n\).</p>
+      <p><b>Curricula.</b> A curriculum moves the target linearly with training progress \(\tau\in[0,1]\), the fraction of optimization steps completed:</p>
+      <div class="eq">\[ \bar n(\tau) = \bar n_0+\tau(\bar n_1-\bar n_0). \]</div>
+      <p>The three <i>ramps</i> (cutoff, geometric, and power law) go from \(\bar n_0=1\) to \(\bar n_1=3.8\), i.e. from the next-step objective to the uniform \(k=8\) objective, so they end on the same objective as our baseline. The <i>reverse cutoff ramp</i> runs in the opposite direction, from \(3.8\) to \(1\), and ends on the next-step objective. The <i>slow-tempo geometric ramp</i> instead moves \(g\) linearly from \(0\) to \(1\); this stays near the next-step objective for longer (\(\bar n=1.48\) halfway through training, compared with \(2.4\) for the ramp that is linear in \(\bar n\)). Finally, two <i>fixed</i> profiles hold \(\bar n=2.43\), the value of the uniform \(k=5\) objective, for the entire run: one geometric and one far-only.</p>
+      <p><b>Setup.</b> We run this study with DINO FT on Push-T, training every arm for two epochs using the recipe from the main experiments. We compare against the uniform \(k=1\) (next-step) and \(k=8\) objectives. For reference, the figure also shows two autoregressively trained arms, which keep uniform \(f\) and \(k=8\) but fill each future input position with the model's own previous prediction (one predictor pass per step, with gradients flowing through the fed-back predictions). The predictor attends either to the full window or only to the last three tokens (sliding, as in the DINO-WM rollout). Planning uses CEM (300 samples, 30 iterations, top 30) and GD (Adam, learning rate \(0.08\), 500 steps) at goal horizons \(H\in\{5,8,10\}\), with 3 seeds × 50 episodes each.</p>
+      <figure>
+        <div class="plate"><img src="static/img/fig8_curriculum.png" alt="Planning success for each loss-weighting profile and curriculum on Push-T, CEM and GD." width="2200" height="860"></div>
+        <figcaption><b>Figure 8. Loss weighting and curricula on Push-T</b> (DINO FT, two training epochs). Planning success rate with CEM (left) and GD (right) at goal horizons \(H=5,8,10\) (light to dark). Rows: the uniform next-step (\(k=1\), “s1”) and \(k=8\) (“s8”, baseline) objectives; five curricula and two fixed profiles on the \(k=8\) window; and two autoregressively trained \(k=8\) models, with a full or three-token sliding attention window. Tick: mean over 3 planning seeds × 50 episodes; bar: standard error across seeds. Dashed vertical lines: the uniform \(k=8\) baseline at each \(H\).</figcaption>
+      </figure>
+      <p><b>Results.</b> No weighting profile or curriculum outperforms uniform weighting. Each of the seven weighted arms falls below the uniform \(k=8\) baseline in all six planner–horizon settings (baseline CEM \(0.90/0.50/0.37\) and GD \(0.83/0.38/0.24\) at \(H=5/8/10\)). The best-performing arm, the cutoff ramp, comes close at \(H=5\) (\(0.88\) CEM) but falls behind at longer horizons (\(0.19\) versus \(0.37\) CEM at \(H=10\)). Among the ramps, those that spend less of training emphasizing long horizons perform worse: the cutoff, geometric, and power-law ramps reach \(0.46\), \(0.43\), and \(0.40\) at CEM \(H=8\), respectively, while the slow-tempo ramp reaches only \(0.29\), below the next-step objective's \(0.31\).</p>
+      <p>The ordering of the curriculum also matters. The reverse ramp passes through the same profiles as the cutoff ramp and matches it at \(H=5\) (\(0.88\)), but because it ends on the next-step objective, it falls to \(0.16\) and \(0.04\) at \(H=8\) and \(10\), respectively, below the plain next-step model (\(0.31\) and \(0.15\)). At a fixed mean horizon, the geometric profile (\(0.86/0.42/0.25\) CEM) performs similarly to the uniform \(k=5\) objective (CEM \(0.85/0.45/0.27\), Figure 6). The far-only profile, which assigns no weight to horizons \(2,\dots,7\), fails at every horizon (\(\leq 0.10\) with both planners).</p>
+    </section>
+
+    <section class="app" id="app-rollout-decode">
+      <h2>B · Qualitative rollout decoding</h2>
+      <p>To visualize imagined rollouts, we train a separate decoder that maps the 384-d DINOv2 CLS embedding back to a 224×224 RGB image. The world model, including its (EMA) image encoder, stays frozen. The decoder has 13M parameters. We train on single frames from the training split for 40k steps with batch size 64, with AdamW. The decoder does not take proprioceptive inputs.</p>
+      <figure>
+        <h4>Push-T</h4>
+        <div class="slot wide" data-src="static/videos/rollout/pusht_dinoft.mp4" data-still="still-pusht" hidden></div>
+        <div id="still-pusht">
+          <div class="plate"><img src="static/img/fig9_decoded_pusht.png" alt="Decoded Push-T rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
+          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/pusht_dinoft.mp4</code> and the video replaces it.</p>
+        </div>
+        <figcaption><b>Figure 9. Push-T rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 100-environment-step rollout.</figcaption>
+      </figure>
+      <figure>
+        <h4>Cube</h4>
+        <div class="slot wide" data-src="static/videos/rollout/cube_dinoft.mp4" data-still="still-cube" hidden></div>
+        <div id="still-cube">
+          <div class="plate"><img src="static/img/fig10_decoded_cube.png" alt="Decoded Cube rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
+          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/cube_dinoft.mp4</code> and the video replaces it.</p>
+        </div>
+        <figcaption><b>Figure 10. Cube rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 100-environment-step rollout.</figcaption>
+      </figure>
+    </section>
+
+    <section class="app" id="app-theory">
+      <h2>C · A toy model of the representation transition</h2>
+      <p>Let \(o_t\in\mathcal O\) be observations, \(a_t\in\mathcal A\) actions, and \(\mathcal T:\mathcal O\times\mathcal A\to\mathcal O\) the environment dynamics. We learn an encoder \(E_\theta:\mathcal O\to\mathcal Z\) and a latent dynamics model \(T_\theta:\mathcal Z\times\mathcal A\to\mathcal Z\) that agree with the environment, \(E_\theta\big(\mathcal T(o_t,a_t)\big)=T_\theta\big(E_\theta(o_t),a_t\big)\), together with an anti-collapse term that keeps \(E_\theta\) non-trivial. Although \(\mathcal T\) acts one step at a time, we may equally learn an \(n\)-step map \(T^{(n)}_\theta(z_t,a_t,\dots,a_{t+n-1})=z_{t+n}\) that consumes a chunk of actions at once. The following example shows that this choice changes <i>which features the encoder keeps</i>, and in particular addresses the concern that JEPA learns slow features.</p>
+      <p><b>A two-feature model.</b> Consider two independent AR(1) features \(x_t,y_t\) with their own action channels, a linear unit-variance encoder with a one-dimensional latent, and the optimal linear \(n\)-step predictor:</p>
+      <div class="eq">\[
+        \begin{aligned}
+        x_{t+1} &amp;= \lambda_x x_t + b_x a^x_t + \sigma_x \epsilon^x_t,\\
+        y_{t+1} &amp;= \lambda_y y_t + b_y a^y_t + \sigma_y \epsilon^y_t,\\
+        z_t &amp;= \cos\theta\, x_t+\sin\theta\, y_t,\\
+        \hat z_{t+n} &amp;= p\, z_t + \sum_{i=0}^{n-1}\big(q^x_i a^x_{t+i} + q^y_i a^y_{t+i}\big),
+        \end{aligned}
+      \]</div>
+      <p>where \(a^{x,y}_t,\epsilon^{x,y}_t\overset{\text{iid}}{\sim}\mathcal N(0,1)\) and \(b^2+\sigma^2=1-\lambda^2\) so that \(x_t,y_t\) have unit variance. Each feature is characterized by its memory \(\lambda\) and its <i>noise fraction</i> \(\eta=\sigma^2/(b^2+\sigma^2)\): \(\eta=0\) is fully action-driven, \(\eta=1\) an uncontrollable distractor. Minimizing over \(p,\boldsymbol{q}\) leaves a loss in the encoder angle alone,</p>
+      <div class="eq">\[
+        L^{(n)}(\theta) = \ell_x(n)\cos^2\theta + \ell_y(n)\sin^2\theta + \Delta_n^2\sin^2\theta\cos^2\theta,
+        \quad \ell(n)=\eta\,(1-\lambda^{2n}),\; \Delta_n=\lambda_x^n-\lambda_y^n.
+      \]</div>
+      <p>The first two terms are the irreducible error of each feature; the last is a mixing penalty. The encoder always commits to a single feature, \(\theta=0\) (\(x_t\)) or \(\theta=\pi/2\) (\(y_t\)), whichever has the smaller \(\ell(n)\). At \(n=1\), \(\ell(1)=\sigma^2\), so a slowly drifting feature (high \(\lambda\)) is nearly free whether it is driven by action or noise. As \(n\to\infty\), \(\ell\to\eta\): long-horizon prediction charges the <i>fraction</i> of a feature's motion that the actions do not explain. Moreover, the ratio \(\ell_x(n)/\ell_y(n)\) is monotone in \(n\) (increasing when \(\lambda_x&gt;\lambda_y\)), so the preferred feature switches at most once: lengthening the horizon can only move the latent from the low-\(\sigma^2\) feature toward the low-\(\eta\) one.</p>
+      <p>The analogy with visual control is that agent and object motion is fast on the frame-skip timescale while background and lighting drift slowly (and uncontrollably). For a slow distractor \(x\) with memory time \(\tau_x=1/(1-\lambda_x)\gg 1\) and a fast feature \(y\) (\(\lambda_y^{2n}\approx 0\)), we have \(\ell_x(n)\approx 2\eta_x n/\tau_x\) for \(n\ll\tau_x\), so the switch occurs at \(n^\star\approx\eta_y\tau_x/(2\eta_x)\); beyond that, longer horizons change nothing. Averaging the loss uniformly over \(n\le k\), as we do in training, preserves this qualitative behavior: the averaged loss is still concave in \(\sin^2\theta\), so the encoder still commits to a single feature, and the switch moves to a larger \(k\).</p>
+    </section>
+
+    <section class="app" id="app-baselines">
+      <h2>D · Baselines</h2>
+      <h3>LeWM</h3>
+      <p>LeWorldModel is an end-to-end trained joint-embedding predictive architecture (JEPA) that utilizes SIGReg to prevent latent collapse by encouraging the full embedding distribution to match an isotropic Gaussian. The LeWM training objective is defined as:</p>
+      <div class="eq">\[ \mathcal{L}_\text{LeWM} = \mathcal{L}_\text{pred} + \lambda\, \text{SIGReg}(\mathbf{Z}). \]</div>
+      <p>A complete table of hyperparameters can be found in <a class="app-link" href="#app-lewm-hyperparam">Appendix E.3</a>.</p>
+      <h3>Temporal Straightening</h3>
+      <p>Temporal Straightening keeps the DINOv2 encoder frozen and trains a small convolutional projector that maps its patch tokens to a compact \(14\times 14\times 8\) latent, in which the predictor is trained and planning takes place. A curvature regularizer encourages latent trajectories to be straight, so that Euclidean distance to the goal latent is a better planning objective:</p>
+      <div class="eq">\[ \mathcal{L}_\text{TS} = \mathcal{L}_\text{pred} + \lambda\, \mathcal{L}_\text{curv}, \qquad \mathcal{L}_\text{curv} = 1 - \cos\!\big(z_{t+1}-z_t,\; z_{t+2}-z_{t+1}\big), \]</div>
+      <p>averaged over consecutive latent triples. We train it as a next-step model with their \(\lambda=0.1\), keeping their relative weighting of the visual, proprioceptive and curvature terms, with the same predictor architecture, history length and data as our models, for two epochs. The original paper uses 8 latent channels, which we keep for Push-T, Cube and Reacher; on Maze we use a larger latent of 32 channels (\(14\times 14\times 32\)), since the 8-channel model plans poorly there. We evaluate it with our higher-budget open-loop protocol (<a class="app-link" href="#app-planning-hyperparam">Appendix E.2</a>), not the planner budget of the original paper, which runs GD for 100 steps where ours runs 500 or more.</p>
+      <h3>Fast LeWM</h3>
+      <p>Fast LeWM builds on the LeWM encoder and objective, and replaces LeWM's recursive rollout with parallel prediction: a state-conditioned action encoder composes each prefix of the action sequence, and the predictor maps the current latent and the composed prefixes to all future latents in one pass. Like <i>k</i>-WM it avoids feeding predictions back into the predictor, but it does so with an additional action-composition module, whereas <i>k</i>-WM changes only the input layout and training target of the existing predictor. We re-run it on our datasets under the open-loop protocol of the main results, so the numbers are not comparable to the closed-loop MPC results reported in the original paper.</p>
+    </section>
+
+    <section class="app" id="app-hyperparams">
+      <h2>E · Hyperparameters</h2>
+
+      <h3 id="app-predictor-hyperparam">E.1 Predictor architecture</h3>
+      <p>All predictors are causal transformers. The <i>k</i>-WM and next-step models of a class share the same architecture and differ only in the training sequence length.</p>
+      <figure>
+        <div class="table-scroll">
+          <table class="results">
+            <thead><tr><th></th><th>DINO-WM</th><th>DINO FT</th><th>LeWM</th></tr></thead>
+            <tbody>
+              <tr><td>Encoder</td><td>DINOv2 ViT-S, frozen</td><td>DINOv2 ViT-S, fine-tuned</td><td>ViT-Tiny, scratch</td></tr>
+              <tr><td>Tokens per frame</td><td>256 (patches)</td><td>1 (CLS)</td><td>1 (CLS)</td></tr>
+              <tr><td>Latent dim</td><td>384</td><td>384</td><td>192</td></tr>
+              <tr><td>Predictor width</td><td>404</td><td>404</td><td>202</td></tr>
+              <tr><td>Depth</td><td>6</td><td>6</td><td>6</td></tr>
+              <tr><td>Heads × head dim</td><td>16 × 64</td><td>16 × 64</td><td>16 × 64</td></tr>
+              <tr><td>MLP</td><td>SwiGLU, 1365</td><td>SwiGLU, 1365</td><td>SwiGLU, 1365</td></tr>
+              <tr><td>Dropout</td><td>0.1</td><td>0.1</td><td>0.1</td></tr>
+              <tr><td>History frames</td><td>3</td><td>3</td><td>3</td></tr>
+              <tr><td>Predictor params</td><td>20.1M</td><td>20.4M</td><td>10.0M</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption><b>Table 3.</b> <i>k</i>-WM hyperparameters.</figcaption>
+      </figure>
+
+      <h3 id="app-planning-hyperparam">E.2 Planning</h3>
+      <p>The planner settings are shared by every method including the baselines. Both planners optimize actions in normalized units, and each episode is planned once and executed open-loop. CEM refits its sampling distribution to the top-\(k\) elites at each iteration. GD uses learning rate \(0.08\) for 500 steps on Push-T, Maze and Cube. On Reacher, 500 steps are not enough at any learning rate we tried, so every method uses learning rate \(0.01\) for 1999 steps.</p>
+      <figure>
+        <div class="table-scroll">
+          <table class="results">
+            <tbody>
+              <tr class="group"><th colspan="3">CEM (all environments)</th></tr>
+              <tr><td>Samples per iteration</td><td colspan="2">300</td></tr>
+              <tr><td>Elites (top-k)</td><td colspan="2">30</td></tr>
+              <tr><td>Iterations</td><td colspan="2">30</td></tr>
+              <tr class="group"><th>GD</th><th>500 steps</th><th>1999 steps</th></tr>
+              <tr><td>Used for</td><td>Push-T, Maze, Cube</td><td>Reacher</td></tr>
+              <tr><td>Optimizer</td><td>Adam</td><td>Adam</td></tr>
+              <tr><td>Learning rate</td><td>0.08</td><td>0.01</td></tr>
+              <tr><td>Optimization steps</td><td>500</td><td>1999</td></tr>
+              <tr><td>Initialization</td><td>zero actions</td><td>zero actions</td></tr>
+              <tr><td>Action noise</td><td>std 0.1, every 200 steps</td><td>std 0.1, every 200 steps</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption><b>Table 4.</b> Planning hyperparameters.</figcaption>
+      </figure>
+
+      <h3 id="app-lewm-hyperparam">E.3 LeWM</h3>
+      <p>For LeWM, we select hyperparameters via a grid search over SIGReg (0.09, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96) and training epochs (5, 20). We tune each method independently using the same search space and evaluation budget.</p>
+      <figure>
+        <div class="table-scroll">
+          <table class="results">
+            <thead>
+              <tr><th rowspan="2">Environment</th><th colspan="2" class="sep"><i>k</i>-WM</th><th colspan="2" class="sep">LeWM</th></tr>
+              <tr><th class="sep">Epochs</th><th>SIGReg</th><th class="sep">Epochs</th><th>SIGReg</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Push-T</td><td class="sep">20</td><td>0.09</td><td class="sep">5</td><td>0.09</td></tr>
+              <tr><td>Cube</td><td class="sep">5</td><td>0.64</td><td class="sep">20</td><td>0.09</td></tr>
+              <tr><td>Maze</td><td class="sep">5</td><td>0.64</td><td class="sep">5</td><td>0.09</td></tr>
+              <tr><td>Reacher</td><td class="sep">5</td><td>0.09</td><td class="sep">5</td><td>0.09</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figcaption><b>Table 5.</b> Selected hyperparameters for <i>k</i>-WM and LeWM across environments.</figcaption>
+      </figure>
+    </section>
+
+    <section class="app" id="app-env">
+      <h2>F · Environments and datasets</h2>
+      <p><b>Push-T</b> is a 2D continuous rigid-body manipulation task in which the agent (a blue dot) pushes a T-shaped block toward a specified goal configuration. We use the standard dataset from DINO-WM, containing 18,000 episodes that replay expert trajectories with varying levels of noise, with an average length of 196 steps.</p>
+      <p><b>Maze</b> is a 2D navigation task in which an agent navigates through a maze. We adopt the D4RL environment with the Large Maze layout (9×12) and port it to MuJoCo 3. The training dataset consists of 500K procedurally generated frames. For rollout and planning, we use a BFS expert dataset consisting of trajectories toward randomly sampled reachable goals.</p>
+      <p><b>Reacher</b> is a 2D robot-control task in which a two-joint robotic arm must reach a target joint configuration. We follow the DINO-WM environment setup and generate 1.9M frames with actions sampled uniformly from \([-5,5]\), with the environment running at 50 Hz. Rollouts use the same distribution as training, and we plan toward randomly sampled goals, since the small configuration space makes nearly all configurations mutually reachable.</p>
+      <p><b>OGBench Cube (Cube)</b> is a 3D robot-manipulation task in which a robotic arm with a gripper picks up and places a cube, introduced in OGBench. We follow LeWM, using a dataset of 1.8M frames from scripted expert trajectories generated with their data-collection procedure. The rollout and planning dataset follows the same distribution as the training data.</p>
+      <p><b>Proprioception.</b> Prior world-model work varies in how proprioceptive information is incorporated. To make comparisons across models more consistent, we provide the same proprioceptive information to our models and the corresponding baselines. For Push-T and Cube, we provide the world model with proprioceptive state in addition to visual observations: agent position and velocity for Push-T, and end-effector position and yaw for Cube. For Maze and Reacher, we provide velocity only. Providing absolute position would substantially reduce the role of visual state estimation in these environments, while omitting velocity would leave the state under-specified when rolling out from a single ground-truth frame.</p>
+    </section>
+
+  </div>
+</aside>
+</div>
+
+<script src="static/katex/katex.min.js"></script>
+<script src="static/katex/auto-render.min.js"></script>
+<script src="static/js/site.js"></script>
 </body>
 </html>
