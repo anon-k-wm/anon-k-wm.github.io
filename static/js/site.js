@@ -144,11 +144,16 @@
   document.addEventListener("click", (e) => {
     if (e.target.closest(".sheet-bar button")) return close();
     const a = e.target.closest('a[href^="#"]');
-    if (!a) return;
+    // a click outside the open sheet closes it, except on a control (e.g. the video pickers) or at the end of a text selection
+    if (!a) {
+      if (sheet && !sheet.contains(e.target) && !e.target.closest("button, input, select, textarea, label, video")
+          && !String(getSelection())) close();
+      return;
+    }
     const id = a.hash.slice(1);
     sidenav.classList.remove("open");
     if (!sheetFor(id)) {
-      if (sheet && a.closest(".sheet")) shut(true);   // a link out of a sheet to the page proper closes the sheet
+      if (sheet) shut(true);   // a link to the page proper closes the sheet
       return;
     }
     e.preventDefault();
