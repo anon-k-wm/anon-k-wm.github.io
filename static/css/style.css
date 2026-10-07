@@ -1,18 +1,9 @@
-/* k-WM project page.
-
-   A figure-first article. The outline hangs in the left margin and the figures run down a centred column.
-   On wide screens (>= 1400px, the "rail" breakpoint, mirrored in site.js) the paper's text for each figure
-   sits in a narrower third column on the right and stays in view while its figure is on screen; a text much
-   longer than its figure becomes a box that scrolls on its own under the pointer, so the page's length is set
-   by the figures. Nothing moves when something is opened: the appendix slides in over the text column. On
-   narrower screens each text opens as a sheet from its "Read the text" button instead.
-
-   Order: tokens · base · outline · article · figures and tables · clips · notes · sheets and appendix ·
-   one column (< 1400px) · three columns (>= 1400px) · phones and tablets (<= 1000px) · reduced motion. */
+/* k-WM project page. Figures run down the main column; on screens >= 1400px each figure's details sit in
+   a column on the right. Below that, details and the appendix open as sheets from the right. */
 
 /* ── Tokens ── */
 :root {
-  /* Colour: slate neutrals taken from the figures' axis grey; one blue accent (the figures' "ours" blue). */
+  /* Colour */
   --bg: #ffffff;
   --panel: #f5f6f8;
   --shade: #eef0f4;
@@ -28,12 +19,12 @@
   --plate-pad: 0rem;
   --shadow: rgba(20, 30, 50, 0.16);
 
-  /* Type: serif for reading, sans for everything that labels or tabulates. */
+  /* Type */
   --serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
   --sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 
-  /* Layout. The three-column block below overrides most of these. */
+  /* Layout */
   --col: 62rem;              /* widest the figure column gets */
   --colw: var(--col);        /* its actual width (narrower when the text column is showing) */
   --rail: 0rem;              /* text column; only on wide screens */
@@ -42,10 +33,9 @@
   --edge: 2rem;              /* to the window edge */
   --sheet-w: clamp(27rem, 38vw, 38rem);  /* appendix and note sheets */
   --sheet-pad: 1.75rem;
-  /* The column is centred when the margin can hold the outline, otherwise it sits just right of it. */
   --col-left: max(calc(var(--edge) + var(--nav-w) + var(--gap)), calc((100vw - var(--col)) / 2));
 }
-/* Dark palette, once for the system setting and once for an explicit toggle; keep the two in sync. */
+/* Dark palette (system setting and explicit toggle; keep in sync) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #14171c; --panel: #1b1f26; --shade: #222831; --ink: #e6e9ee; --ink-2: #c2c8d2; --muted: #9aa3b0;
@@ -115,8 +105,9 @@ main ul, main ol, .appendix ul { margin: 0 0 1.05rem; padding-left: 1.4rem; }
 main li { margin-bottom: 0.4rem; }
 main li::marker { color: var(--muted); }
 .venue { font-family: var(--sans); color: var(--muted); margin: 1rem 0 2.5rem; font-size: 1rem; text-align: left; }
+.hero .abstract { margin-top: 3.75rem; }
 
-/* Section head: the title, and on the right the button that opens its text */
+/* Section head: title and Details button */
 .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; margin: 0 0 1rem; }
 .head h2, .head h3 { margin: 0; min-width: 0; }
 a.more {
@@ -127,10 +118,13 @@ a.more {
 a.more::after { content: "\00a0\203A"; }
 a.more:hover { border-color: var(--ink); }
 a.more[aria-current] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-/* One-sentence stand-in for a note; ".keep" stays even when the note is showing */
-main p.lede { font-size: 1.1875rem; line-height: 1.55; max-width: 50rem; margin: 0 0 1.5rem; text-align: left; hyphens: manual; text-wrap: pretty; }
+/* The takeaway under each heading */
+main p.lede {
+  font-size: 1.1875rem; line-height: 1.55; max-width: 50rem; margin: 0 0 1.5rem; text-align: left; hyphens: manual; text-wrap: pretty;
+  color: var(--ink); border-left: 3px solid var(--accent); padding-left: 1rem;
+}
 
-/* Rows: the figure side (.fig) and its note. One column until the screen is wide enough for both. */
+/* Rows: a figure (.fig) and its note */
 .row + .row, .row + .clips, .clips + .row { margin-top: 3rem; }
 .fig { min-width: 0; }
 .fig > :first-child { margin-top: 0; }
@@ -159,7 +153,7 @@ table.results tr.ours td { background: var(--shade); }
 table.results .sd { font-size: 0.72rem; color: var(--muted); margin-left: 0.15rem; }
 table.results .sep { border-left: 1px solid var(--rule); }
 .best { color: var(--best); }
-/* A table in a narrow column tightens before it has to scroll */
+/* Tables tighten before they scroll */
 @container (max-width: 54rem) {
   table.results { font-size: 0.8125rem; }
   table.results th, table.results td { padding: 0.45rem 0.4rem; }
@@ -171,7 +165,7 @@ table.results .sep { border-left: 1px solid var(--rule); }
   table.results .sd { font-size: 0.6rem; margin-left: 0.08rem; }
 }
 
-/* Links that open an appendix: dotted underline, as for a side note */
+/* Appendix links */
 a.app-link { text-decoration: underline dotted; text-decoration-thickness: 1.5px; text-underline-offset: 0.22em; white-space: nowrap; }
 a.app-link:hover { text-decoration-style: solid; }
 
@@ -192,7 +186,7 @@ a.app-link:hover { text-decoration-style: solid; }
 .clip-label { font-family: var(--sans); font-size: 0.8125rem; font-weight: 500; color: var(--muted); margin-bottom: 0.35rem; }
 .clip-label.ours { color: var(--accent); font-weight: 600; }
 .clip-label .katex { font-size: 1em; }
-/* A slot holds a video once its file exists (site.js), and a placeholder until then */
+/* Video slots, with a placeholder until the file exists */
 .slot { aspect-ratio: 1 / 1; max-width: 100%; border-radius: 6px; overflow: hidden; position: relative; }
 .slot.wide { aspect-ratio: 1804 / 814; }
 .slot video, .slot img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--plate); }
@@ -205,7 +199,7 @@ a.app-link:hover { text-decoration-style: solid; }
 main .still-note, .appendix .still-note { text-align: left; hyphens: manual; font-family: var(--sans); font-size: 0.8125rem; color: var(--muted); margin: 0.5rem 0 0; }
 .still-note code { font-family: var(--mono); font-size: 0.75rem; }
 
-/* ── Notes: the paper's text for a figure ── */
+/* ── Notes: details for a figure ── */
 .note { font-size: 1rem; line-height: 1.6; color: var(--ink-2); }
 .note p { margin-bottom: 0.85rem; }
 .note ul { padding-left: 1.1rem; }
@@ -218,10 +212,9 @@ main .still-note, .appendix .still-note { text-align: left; hyphens: manual; fon
 .note .key { color: var(--ink); font-weight: 600; }
 .note .eq { margin-bottom: 0.85rem; }
 .note .katex-display { margin: 0.5em 0; }
-.note-title { display: none; }   /* the figure side carries the heading; the title shows only in a sheet */
+.note-title { display: none; }   /* shown only in a sheet */
 
-/* ── Sheets: a panel that slides in from the right over the page. The appendix is always one; a note is one
-      only on screens without a text column (site.js gives it the class "sheet" then, and adds the bar). ── */
+/* ── Sheets: panels that slide in from the right (the appendix, and notes on narrow screens) ── */
 .sheet-bar {
   display: none; align-items: center; justify-content: space-between; gap: 1rem; flex: none;
   padding: 0.7rem 1rem 0.7rem var(--sheet-pad); border-bottom: 1px solid var(--rule);
@@ -245,7 +238,7 @@ main .still-note, .appendix .still-note { text-align: left; hyphens: manual; fon
 }
 .js .sheet .note-title { display: block; font-size: 1.4rem; margin-bottom: 1rem; }
 
-/* Appendix: one section at a time in the sheet; plain sections at the bottom of the page without scripts */
+/* Appendix: one section at a time */
 .appendix h2 { font-size: 1.4rem; }
 .appendix h3 { font-size: 1.1rem; margin-top: 1.75rem; }
 .appendix h3[id] { scroll-margin-top: 1.25rem; }
@@ -257,7 +250,7 @@ html:not(.js) .app { padding-top: 3rem; }
 .js .appendix figure { margin: 1.5rem 0; }
 .js .appendix table.results { font-size: 0.8125rem; }
 .js .appendix table.results td { white-space: normal; }
-/* Previous / next at the foot of each appendix section (built by site.js) */
+/* Previous / next links */
 .app-foot {
   display: flex; justify-content: space-between; gap: 1.5rem; margin-top: 3rem; padding-top: 1.1rem; border-top: 1px solid var(--rule);
   font-family: var(--sans); font-size: 0.875rem; line-height: 1.35;
@@ -267,15 +260,13 @@ html:not(.js) .app { padding-top: 3rem; }
 .app-foot .next { text-align: right; margin-left: auto; }
 .app-foot small { display: block; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
 
-/* ── One column: no text column, so the notes are sheets (with scripts) or plain blocks (without) ── */
+/* ── One column (< 1400px) ── */
 @media (max-width: 1399px) {
-  .hero .abstract { margin-top: 3.75rem; }
   html:not(.js) .note { margin-top: 1.5rem; border-left: 1px solid var(--rule); padding-left: 1.25rem; }
   html:not(.js) a.more[href^="#text-"] { display: none; }   /* nothing to open */
-  .note.dup { display: none; }   /* repeats the lede exactly */
 }
 
-/* ── Three columns: the text column ── */
+/* ── Three columns (>= 1400px) ── */
 @media (min-width: 1400px) {
   :root {
     --rail: clamp(23rem, 26vw, 30rem);
@@ -283,27 +274,28 @@ html:not(.js) .app { padding-top: 3rem; }
     --gap: clamp(1.75rem, 2.6vw, 3.75rem);
     --edge: clamp(1.5rem, 1.7vw, 2rem);
     --colw: min(var(--col), calc(100vw - 2 * var(--edge) - var(--nav-w) - 2 * var(--gap) - var(--rail)));
-    /* the three columns are centred as a group */
     --col-left: max(calc(var(--edge) + var(--nav-w) + var(--gap)), calc((100vw + var(--nav-w) - var(--colw) - var(--rail)) / 2));
   }
-  /* main spans the figure and text columns; rows and the hero reach into the text column with a negative margin */
+  /* rows reach into the text column with a negative margin */
   main { max-width: calc(var(--col) + var(--gap) + var(--rail)); padding-right: calc(var(--gap) + var(--rail)); }
-  .row, .hero {
+  .row {
     display: grid; grid-template-columns: minmax(0, 1fr) var(--rail); column-gap: var(--gap); align-items: start;
     margin-right: calc(-1 * (var(--gap) + var(--rail)));
   }
   a.more[href^="#text-"] { display: none; }
 
-  /* Whichever side is shorter stays in view while the other scrolls (--stick is set per element by site.js) */
+  /* The shorter side stays in view while the other scrolls (--stick, set by site.js) */
   .fig, .note { position: sticky; top: var(--stick, 2rem); }
   .note {
     font-size: clamp(0.9375rem, 0.55rem + 0.42vw, 1rem); color: var(--ink-2);
     border-left: 1px solid var(--rule); padding: 0.5rem 0 0 1.25rem;
   }
   .row.sub .note { padding-top: 0.15rem; }
-  /* A text much longer than its figure scrolls inside a box (--note-max, set by site.js: the figure's height, or
-     most of the window when the figure is short) rather than stretching the page; fades show there is more.
-     The box reaches into the empty right margin so its scrollbar sits beside the text, not over it. */
+  .note-body::before {
+    content: "Details"; display: block; margin-bottom: 0.6rem;
+    font-family: var(--sans); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+  }
+  /* A long note scrolls inside a box (--note-max, set by site.js) and fades at the edges */
   .note-body {
     max-height: min(var(--note-max, 100vh), calc(100vh - 4.5rem)); overflow-y: auto; overscroll-behavior-y: auto;
     margin-right: -1rem; padding-right: 1rem;
@@ -316,14 +308,7 @@ html:not(.js) .app { padding-top: 3rem; }
     mask-image: linear-gradient(transparent, #000 3.5rem, #000 calc(100% - 3.5rem), transparent);
   }
 
-  /* Hero: title, venue and Figure 1 in the figure column; the figure's caption in the text column, beside the abstract */
-  .hero > h1, .hero > .venue, .hero .plate, .hero .abstract { grid-column: 1; }
-  .hero figure { display: contents; }
-  .hero .plate { grid-row: 3; margin-bottom: 2.25rem; }
-  .hero .abstract { grid-row: 4; }
-  .hero figcaption { grid-row: 4; grid-column: 2; align-self: start; margin-top: 0; padding: 0.5rem 0 0 1.25rem; border-left: 1px solid var(--rule); }
-
-  /* The appendix takes over the text column exactly, so it never covers a figure */
+  /* The appendix covers the text column only */
   .js .appendix { width: max(27rem, calc(100vw - var(--col-left) - var(--colw) - var(--gap) / 2)); box-shadow: none; }
 }
 

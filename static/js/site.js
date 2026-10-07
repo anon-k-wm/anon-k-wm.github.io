@@ -1,9 +1,8 @@
-/* k-WM project page. Everything here is an enhancement: without scripts the page is a one-column article
-   with the appendix at the bottom. Sections: math · outline · rows · sheets · scrollspy · videos. */
+/* k-WM project page. Without scripts the page is one column with the appendix at the bottom. */
 (() => {
   "use strict";
   const $ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
-  const rail = window.matchMedia("(min-width: 1400px)");   // the text column is showing; mirrors style.css
+  const rail = window.matchMedia("(min-width: 1400px)");   // mirrors style.css
 
   // ── Math ──
   if (window.renderMathInElement) {
@@ -12,7 +11,7 @@
       throwOnError: false,
     });
   }
-  // Keep punctuation attached to the inline math it follows or opens, so a line never starts with a comma.
+  // Keep punctuation next to inline math
   for (let k of $("p .katex, li .katex, figcaption .katex")) {
     if (k.closest(".katex-display")) continue;
     if (k.parentNode.tagName === "SPAN" && k.parentNode.childNodes.length === 1) k = k.parentNode;   // auto-render's wrapper
@@ -27,6 +26,13 @@
     wrap.append(k);
     if (after) { next.nodeValue = next.nodeValue.slice(after.length); wrap.append(after); }
   }
+  // No lone last word in a lede
+  for (const p of $("p.lede")) {
+    const walk = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    let last = null;
+    while (walk.nextNode()) if (!walk.currentNode.parentNode.closest(".katex") && /\s/.test(walk.currentNode.nodeValue)) last = walk.currentNode;
+    if (last) last.nodeValue = last.nodeValue.replace(/\s+(?=\S*$)/, "\u00a0");
+  }
 
   // ── Outline: the menu button on narrow screens ──
   const sidenav = document.querySelector(".sidenav");
@@ -35,10 +41,7 @@
     toggle.setAttribute("aria-expanded", sidenav.classList.toggle("open"));
   });
 
-  // ── Rows: a figure and its note, side by side on wide screens ──
-  // Whichever side of a row is shorter sticks while the other scrolls past; a side taller than the window
-  // sticks by its bottom edge instead. A text much longer than its figure becomes a box of the figure's height
-  // (or most of the window, when the figure is short) that scrolls on its own, fading at the edge that has more.
+  // ── Rows: the shorter side sticks; a long note scrolls in a box ──
   const STICK = 32;     // px between a sticky side and the window edge
   const SLACK = 200;    // px a text may run past the box height before it is boxed
   const MIN_BOX = 0.8;  // of the window height
@@ -67,15 +70,14 @@
   window.addEventListener("load", fit);
   if (document.fonts) document.fonts.ready.then(fit);
 
-  // ── Sheets: panels that slide in from the right. The appendix is always one; a note is one only while
-  //    there is no text column, and opens from its "Read the text" button. One sheet is open at a time. ──
+  // ── Sheets: the appendix, and notes on narrow screens. One open at a time. ──
   const appendix = document.getElementById("appendix");
   const appendixBody = appendix.querySelector(".sheet-body");
   const parts = $(".app", appendix);
-  const sheetNotes = rows.map((r) => r.note).filter((n) => !n.matches(".dup"));   // a dup note has no button
+  const sheetNotes = rows.map((r) => r.note);
   let sheet = null, lastFocus = null;
 
-  for (const [el, label] of [[appendix, "Appendix"], ...sheetNotes.map((n) => [n, "Paper text"])]) {
+  for (const [el, label] of [[appendix, "Appendix"], ...sheetNotes.map((n) => [n, "Details"])]) {
     const bar = document.createElement("div");
     bar.className = "sheet-bar";
     bar.innerHTML = `<span>${label}</span><button type="button">Close</button>`;
@@ -83,7 +85,7 @@
   }
   const setMode = () => { for (const n of sheetNotes) n.classList.toggle("sheet", !rail.matches); };
 
-  // Previous / next links at the foot of each appendix section, so it can be read straight through
+  // Previous / next links in the appendix
   parts.forEach((part, i) => {
     const foot = document.createElement("nav");
     foot.className = "app-foot";
@@ -144,7 +146,7 @@
   document.addEventListener("click", (e) => {
     if (e.target.closest(".sheet-bar button")) return close();
     const a = e.target.closest('a[href^="#"]');
-    // a click outside the open sheet closes it, except on a control (e.g. the video pickers) or at the end of a text selection
+    // a click outside closes the sheet, unless on a control or ending a selection
     if (!a) {
       if (sheet && !sheet.contains(e.target) && !e.target.closest("button, input, select, textarea, label, video")
           && !String(getSelection())) close();
@@ -153,18 +155,18 @@
     const id = a.hash.slice(1);
     sidenav.classList.remove("open");
     if (!sheetFor(id)) {
-      if (sheet) shut(true);   // a link to the page proper closes the sheet
+      if (sheet) shut(true);
       return;
     }
     e.preventDefault();
-    // a second click on the button or the outline entry that opened the sheet closes it
+    // clicking the opener again closes it
     if (a.classList.contains("more") && a.hasAttribute("aria-current")) return close();
     if (a.matches(".sidenav a[data-app].current")) return close();
     open(id);
     setHash(id, true);
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheet) close(); });
-  const fromHash = () => {   // back and forward step through what was opened
+  const fromHash = () => {   // back / forward
     const id = location.hash.slice(1);
     if (!open(id) && sheet && !document.getElementById(id)) shut();
   };
@@ -190,9 +192,7 @@
     for (const id of links.keys()) { const el = document.getElementById(id); if (el) spy.observe(el); }
   }
 
-  // ── Videos. A .slot shows its clip once the file exists, and until then a labelled placeholder (or the
-  //    paper's still beside it). Planning slots name their file from the environment, the chosen model class
-  //    and planner, and their kind (start, goal, k1, k8); the rollout slots carry data-src. File names: static/videos/README.txt. ──
+  // ── Videos: a slot shows its clip once the file exists (names: static/videos/README.txt) ──
   const pickers = [document.getElementById("model-picker"), document.getElementById("planner-picker")];
   const chosen = (p) => Object.values(p.querySelector('[aria-pressed="true"]').dataset)[0];
   const planningSrc = (slot) => {
@@ -212,7 +212,7 @@
     if (still) v.alt = `${slot.dataset.kind} frame`;
     else Object.assign(v, { muted: true, loop: true, autoplay: true, playsInline: true, controls: true, preload: "metadata" });
     v.addEventListener(still ? "load" : "loadeddata", () => {
-      if (slot.dataset.src !== src) return;   // the selection changed while this clip was loading
+      if (slot.dataset.src !== src) return;   // the selection changed meanwhile
       if (empty) empty.hidden = true;
       slot.hidden = false;
       slot.append(v);

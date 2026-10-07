@@ -44,13 +44,9 @@
 <div class="page">
 <main>
 
-<!-- Figure-first page. Each section is a row: heading, figure and full caption on the figure side (class "fig"),
-     the paper's text for it in an aside (class "note"). On wide screens the note sits beside the figure; on
-     narrower ones it opens as a sheet from the "Read the text" button and the one-sentence lede stands in.
-     Note class "dup" = repeats the lede, so it only shows beside the figure. Row class "sub" = a subsection.
-     See README.md. -->
+<!-- Each section is a row: the figure side (.fig) with the takeaway, figure and context, and a note (.note) with details. -->
 
-<!-- ───────────── Overview: on wide screens the abstract sits beside Figure 1's caption ───────────── -->
+<!-- ───────────── Overview ───────────── -->
 <section id="top">
   <div class="hero">
     <h1><i>k</i>-WM: Predicting <i>k</i> Steps at Once for <span class="nw">Long-Horizon</span> Planning with World Models</h1>
@@ -70,18 +66,23 @@
 <section id="method">
   <div class="row">
     <div class="fig">
-      <div class="head"><h2>Method</h2><a class="more" href="#text-method">Read the text</a></div>
+      <div class="head"><h2>Method</h2><a class="more" href="#text-method">Details</a></div>
       <p class="lede"><i>k</i>-WM changes only the predictor input layout and the training objective of a JEPA world model, leaving the encoder and predictor architecture unchanged.</p>
       <figure>
         <div class="plate"><img src="static/img/fig2_architecture.png" alt="Architecture: next-step world model training and autoregressive inference on the left, k-WM single-pass training and inference on the right." width="2200" height="1272"></div>
         <figcaption><b>Figure 2. Architecture.</b> Left: standard next-step WM training with teacher forcing and autoregressive inference. Right: <i>k</i>-WM, which predicts multiple future latents in a single forward pass during both training and inference. In the diagram, <i>c</i> is the number of context latents the predictor is given (<i>c</i> = 3 here) and <i>k</i> is the number of future latents predicted: one call per step for the next-step model, one call for all <i>k</i> in <i>k</i>-WM. “reg.” is the model-specific anti-collapse regularizer on the encoder latents, and \(\mathcal{L}\) is the prediction loss between predicted and encoded target latents. Actions are concatenated with the latent tokens, and the last context latent is repeated to fill the future input positions. The inference process visualized here provides only one ground-truth frame, so the remaining history context must be bootstrapped from model predictions.</figcaption>
       </figure>
+      <p>We implement <i>k</i>-WM on top of three classes of JEPA world models to test whether it helps across all of them. The classes differ in how the encoder is trained. Each <i>k</i>-WM model is compared with its next-step version, which has the same encoder, predictor and training recipe.</p>
+      <ul class="models">
+        <li><b>DINO-WM</b> plans on frozen DINOv2 patch features.</li>
+        <li><b>DINO FT</b> fine-tunes DINOv2 end to end.</li>
+        <li><b>LeWM</b> trains a small ViT from scratch with the SIGReg regularizer.</li>
+      </ul>
+      <p>Three quantities recur below. The training horizon \(k\) is the number of future latents the model learns to predict, and is 8 unless stated. The planning horizon \(H\) is the number of model steps the planner optimizes, and one model step is 5 environment steps. The chunk length \(d\) is the number of latents predicted per call at inference, so \(d=1\) is autoregressive.</p>
     </div>
     <aside class="note" id="text-method" aria-labelledby="text-method-title">
       <div class="note-body">
         <h2 class="note-title" id="text-method-title">Method</h2>
-        <p>\(k\) is the training horizon (future targets per training sequence), \(d\) the inference chunk length (states predicted before predictions are fed back), and \(H\) the planning horizon (model steps optimized).</p>
-
         <h3>Predictor and objective</h3>
         <div class="eq">\[
           (\hat{z}_{t+1},\ldots,\hat{z}_{t+n}) = T_\theta^{k\text{-step}}\left(z_t,\, a_{t:t+n}\right), \quad n\leq k,
@@ -95,15 +96,11 @@
         <div class="eq">\[
           \hat{a}_{0:H} = \operatorname*{argmin}_{a_{0:H}} \left\| z_{\text{goal}}-\hat{z}_H \right\|
         \]</div>
-        <p>Rollouts use chunks of at most \(k\), and \(d=1\) is autoregressive. Planning is open-loop with CEM or GD (<a class="app-link" href="#app-planning-hyperparam">Appendix E.2</a>).</p>
+        <p>Rollouts use chunks of \(d\le k\) latents. Planning is open-loop with CEM or GD (<a class="app-link" href="#app-planning-hyperparam">Appendix E.2</a>).</p>
 
-        <h3>World models</h3>
-        <ul>
-          <li><b>DINO-WM.</b> Frozen DINOv2 ViT-S patch features, \(z_t\in \mathbb{R}^{16\times16\times 384}\), no anti-collapse term.</li>
-          <li><b>DINO FT.</b> DINOv2 ViT-S fine-tuned end to end, CLS latent \(z_t\in \mathbb{R}^{1\times384}\), EMA teacher.</li>
-          <li><b>LeWM.</b> ViT-Tiny, \(z_t\in\mathbb{R}^{1\times 192}\), SIGReg (<a class="app-link" href="#app-baselines">Appendix D</a>), actions concatenated instead of AdaLN.</li>
-        </ul>
-        <p>Each is compared with its next-step counterpart under the same recipe. All use frameskip 5, three history frames and \(k=8\) (<a class="app-link" href="#app-predictor-hyperparam">Appendix E.1</a>), so one forward pass predicts 10 model steps (50 environment steps).</p>
+        <h3>Encoders</h3>
+        <p>Latents are \(16\times16\times384\) DINOv2 ViT-S patch tokens for DINO-WM, a \(384\)-d CLS token with an EMA teacher for DINO FT, and a \(192\)-d ViT-Tiny token for LeWM (<a class="app-link" href="#app-baselines">Appendix D</a>). Our LeWM concatenates actions instead of using AdaLN.</p>
+        <p>All use frameskip 5, three history frames and \(k=8\) (<a class="app-link" href="#app-predictor-hyperparam">Appendix E.1</a>), so one forward pass predicts 10 model steps (50 environment steps).</p>
       </div>
     </aside>
   </div>
@@ -112,12 +109,12 @@
 <!-- ───────────── Planning results ───────────── -->
 <section id="results">
   <h2>Planning results</h2>
-  <p class="lede keep"><i>k</i>-WM matches or beats its next-step baseline in most settings. The gain is largest with gradient-based planning.</p>
+  <p class="lede"><i>k</i>-WM matches or beats its next-step baseline in most settings. The gain is largest with gradient-based planning.</p>
 
-  <!-- Planning rollouts: one episode per environment, model class and planner (static/videos/README.txt) -->
+  <!-- Planning rollouts (static/videos/README.txt) -->
   <div class="clips" id="rollouts">
     <div class="head"><h3>Planning rollouts</h3><a class="more" href="#app-env">Environments and datasets</a></div>
-    <p class="lede keep">Plans at \(H{=}10\) (50 environment steps), executed without replanning. Green means the goal was reached, red means it was not.</p>
+    <p>Plans at \(H{=}10\) (50 environment steps), executed without replanning. Green means the goal was reached, red means it was not.</p>
 
     <div class="pickers">
       <div class="segmented" id="model-picker" role="group" aria-label="World model class">
@@ -193,8 +190,8 @@
 
   <div class="row sub">
     <div class="fig">
-      <div class="head"><h3>Short horizon</h3><a class="more" href="#text-results">Read the text</a></div>
-      <p class="lede">Multi-horizon training performs on par with or better than its matched next-step baseline across most settings, despite receiving supervision over substantially longer prediction horizons.</p>
+      <div class="head"><h3>Short horizon</h3><a class="more" href="#text-results">Details</a></div>
+      <p class="lede">Multi-horizon training performs on par with or better than its matched next-step baseline across most settings, despite receiving supervision over substantially longer prediction horizons. The gain is largest when the encoder is trained end to end, as in DINO FT and LeWM.</p>
       <figure>
         <div class="table-scroll">
           <table class="results">
@@ -253,14 +250,14 @@
         <p>Goals come from expert trajectories on Push-T, Cube and Maze, and are sampled uniformly in joint space (zero initial velocity) on Reacher. Extra baselines are Temporal Straightening and Fast LeWM (<a class="app-link" href="#app-baselines">Appendix D</a>), with the same proprioception as our models.</p>
 
         <h3>Short horizon</h3>
-        <p>Gains are largest for end-to-end encoders. DINO FT gains 21.2 (CEM) and 25.0 (GD) points on average, and LeWM gains 5.3 and 12.8. With the frozen DINO-WM encoder, CEM barely changes but GD gains 8.7 points, so adapting the encoder to the objective matters. <i>k</i>-WM is strongest on Push-T and Reacher. Prior methods are stronger on Maze and Cube.</p>
+        <p>DINO FT gains 21.2 (CEM) and 25.0 (GD) points on average, and LeWM gains 5.3 and 12.8. With the frozen DINO-WM encoder, CEM barely changes but GD gains 8.7 points. <i>k</i>-WM is strongest on Push-T and Reacher. Prior methods are stronger on Maze and Cube.</p>
       </div>
     </aside>
   </div>
 
   <div class="row sub">
     <div class="fig">
-      <div class="head"><h3>Long horizon</h3><a class="more" href="#text-long">Read the text</a></div>
+      <div class="head"><h3>Long horizon</h3><a class="more" href="#text-long">Details</a></div>
       <p class="lede">DINO FT maintains an overall advantage over its next-step counterpart, and multi-horizon LeWM shows a growing advantage over the original AdaLN LeWM as the horizon increases.</p>
       <figure>
         <div class="plate"><img src="static/img/fig3_long_horizon.png" alt="Success rate against planning horizon 5 to 10 for the four environments, CEM on the top row and gradient descent on the bottom row." width="2200" height="1148"></div>
@@ -281,17 +278,35 @@
 <section id="rollout-quality">
   <div class="row">
     <div class="fig">
-      <div class="head"><h2>Open-loop rollout quality</h2><a class="more" href="#text-rollout-quality">Read the text</a></div>
+      <div class="head"><h2>Open-loop rollout quality</h2><a class="more" href="#text-rollout-quality">Details</a></div>
       <p class="lede"><i>k</i>-WM rollouts are sometimes more accurate, but this does not explain all of the planning gain.</p>
       <figure>
         <div class="plate"><img src="static/img/fig4_rollout_error.png" alt="Probe-decoded state error against rollout step for each environment, k-WM solid and next-step dashed." width="2200" height="747"></div>
         <figcaption><b>Figure 4. Open-loop rollout error.</b> Error between the ground-truth states and states decoded by a linear probe from the predicted latent, vs. rollout step, on validation trajectories (lower is better). Solid: <i>k</i>-WM models rolled out with the largest chunk size; dashed: next-step baselines. The probe is fit per encoder on its training latents. Band: ±1 standard error over 488 windows for Push-T and 1000 windows for the other environments.</figcaption>
       </figure>
+      <figure>
+        <h4>Push-T</h4>
+        <div class="slot wide" data-src="static/videos/rollout/pusht_dinoft.mp4" data-still="still-pusht" hidden></div>
+        <div id="still-pusht">
+          <div class="plate"><img src="static/img/fig9_decoded_pusht.png" alt="Decoded Push-T rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
+          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/pusht_dinoft.mp4</code> and the video replaces it.</p>
+        </div>
+        <figcaption><b>Figure 9. Push-T rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 120-environment-step rollout.</figcaption>
+      </figure>
+      <figure>
+        <h4>Cube</h4>
+        <div class="slot wide" data-src="static/videos/rollout/cube_dinoft.mp4" data-still="still-cube" hidden></div>
+        <div id="still-cube">
+          <div class="plate"><img src="static/img/fig10_decoded_cube.png" alt="Decoded Cube rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
+          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/cube_dinoft.mp4</code> and the video replaces it.</p>
+        </div>
+        <figcaption><b>Figure 10. Cube rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 120-environment-step rollout.</figcaption>
+      </figure>
     </div>
     <aside class="note" id="text-rollout-quality" aria-labelledby="text-rollout-quality-title">
       <div class="note-body">
         <h2 class="note-title" id="text-rollout-quality-title">Open-loop rollout quality</h2>
-        <p>A linear probe trained on encoder latents decodes state from open-loop rollouts on validation trajectories. For DINO FT and LeWM, state error grows more slowly with horizon than for the next-step models, though not in every setting. Decoded image rollouts are in <a class="app-link" href="#app-rollout-decode">Appendix B</a>.</p>
+        <p>For DINO FT and LeWM, state error grows more slowly with horizon than for the next-step models, though not in every setting. The image decoder is described in <a class="app-link" href="#app-rollout-decode">Appendix B</a>.</p>
       </div>
     </aside>
   </div>
@@ -301,7 +316,7 @@
 <section id="speed">
   <div class="row">
     <div class="fig">
-      <div class="head"><h2>Planning speed</h2><a class="more" href="#text-speed">Read the text</a></div>
+      <div class="head"><h2>Planning speed</h2><a class="more" href="#text-speed">Details</a></div>
       <p class="lede">Fewer sequential predictor calls make planning up to 3.3× faster for long-horizon GD.</p>
       <figure>
         <div class="plate"><img src="static/img/fig5_planning_speed.png" alt="Planning speed-up of k-WM over the next-step baseline, and planning time across models on a log scale." width="2200" height="740"></div>
@@ -323,8 +338,8 @@
 
   <div class="row sub">
     <div class="fig">
-      <div class="head"><h3 id="horizon-ablation">Choosing the training horizon <i>k</i></h3><a class="more" href="#text-horizon">Read the text</a></div>
-      <p class="lede">Planning performance changes systematically as the prediction horizon increases, and different world model classes and planners exhibit different sensitivities to this choice.</p>
+      <div class="head"><h3 id="horizon-ablation">Choosing the training horizon <i>k</i></h3><a class="more" href="#text-horizon">Details</a></div>
+      <p class="lede">Planning performance changes systematically with \(k\). DINO FT is relatively insensitive to it, while LeWM responds more sharply, and on Reacher success jumps at \(k=5\).</p>
       <figure>
         <div class="plate"><img src="static/img/fig6_training_horizon.png" alt="Heatmaps of planning success against training sequence length and planning goal horizon for DINO FT and LeWM on Push-T and Reacher." width="2200" height="600"></div>
         <figcaption><b>Figure 6. Training horizon vs. goal horizon.</b> Planning success rate (%) as a function of the training sequence length (columns) and the planning goal horizon \(H\) (rows), for DINO FT and LeWM on Push-T and Reacher, with CEM. Mean over 3 planning seeds × 50 episodes.</figcaption>
@@ -333,14 +348,14 @@
     <aside class="note" id="text-horizon" aria-labelledby="text-horizon-title">
       <div class="note-body">
         <h2 class="note-title" id="text-horizon-title">Choosing the training horizon <i>k</i></h2>
-        <p>DINO FT is relatively insensitive to \(k\), while LeWM responds more sharply. On Reacher, success jumps at \(k=5\), suggesting a threshold in the learned representation.</p>
+        <p>The jump on Reacher suggests a threshold in the learned representation, which <a href="#representation">the representation analysis</a> examines.</p>
       </div>
     </aside>
   </div>
 
   <div class="row sub">
     <div class="fig">
-      <div class="head"><h3 id="chunk-ablation">Separating multi-horizon training from parallel inference</h3><a class="more" href="#text-chunk">Read the text</a></div>
+      <div class="head"><h3 id="chunk-ablation">Separating multi-horizon training from parallel inference</h3><a class="more" href="#text-chunk">Details</a></div>
       <p class="lede">Autoregressively trained models also beat the next-step baseline in some settings, so parallel rollout alone does not explain the gain. The effect of chunk length depends on the task and planner.</p>
       <figure>
         <div class="table-scroll">
@@ -378,8 +393,8 @@
 
   <div class="row sub">
     <div class="fig">
-      <div class="head"><h3 id="representation">What the multi-horizon objective teaches the encoder</h3><a class="more" href="#text-representation">Read the text</a></div>
-      <p class="lede">Ground-truth state becomes increasingly linearly decodable as the training horizon grows on both Push-T and Reacher. Latent distance also tracks distance in state more faithfully with a longer training horizon, gradually on Push-T and through a sharp transition on Reacher.</p>
+      <div class="head"><h3 id="representation">What the multi-horizon objective teaches the encoder</h3><a class="more" href="#text-representation">Details</a></div>
+      <p class="lede">Longer-horizon training makes the encoder keep state information it previously represented weakly. Ground-truth state becomes increasingly linearly decodable as the training horizon grows on both Push-T and Reacher. Latent distance also tracks distance in state more faithfully with a longer training horizon, gradually on Push-T and through a sharp transition on Reacher.</p>
       <figure>
         <div class="plate"><img src="static/img/fig7_representation.png" alt="Linear probe error and latent distance against state distance for DINO FT and LeWM as the training horizon grows." width="2200" height="980"></div>
         <figcaption><b>Figure 7. State alignment of the DINO FT (top) and LeWM (bottom) latents vs. training horizon.</b> (a, b) Fraction of the ground-truth state variance that cannot be explained by a linear probe from the latent representation (\(1-R^2\), Push-T states: T keypoints, Reacher states: arm pose), with one dash per trained model. (c, d) Latent squared distance, normalized such that the expected distance between a random pair of frames is 1, versus ground-truth state distance for pairs of frames matched on the remaining state variables (agent position on Push-T, second joint on Reacher). Darker curves indicate longer training horizons.</figcaption>
@@ -390,7 +405,7 @@
         <h2 class="note-title" id="text-representation-title">What the multi-horizon objective teaches the encoder</h2>
         <p>DINO FT has no extra latent regularizer, so it isolates the effect of the training horizon. Its linear-probe error falls steadily with \(k\). LeWM is U-shaped, matching its higher sensitivity to \(k\) in Figure 6.</p>
         <p>We compare latent distances with ground-truth state distances while matching the other state variables. On Push-T the relation becomes more monotonic with \(k\). Reacher shows a sharp transition. The second joint is well organized at all horizons, while the first is poorly separated near 0° and 180° until \(k\) grows. Probe error drops by nearly an order of magnitude around \(k=3\), with seeds on either side, before planning success jumps around \(k=5\) (Figure 6).</p>
-        <p>Longer-horizon supervision thus makes the encoder keep state information it previously represented weakly. A linear stochastic model shows an analogous transition (<a class="app-link" href="#app-theory">Appendix C</a>).</p>
+        <p>A linear stochastic model shows an analogous transition (<a class="app-link" href="#app-theory">Appendix C</a>).</p>
       </div>
     </aside>
   </div>
@@ -398,7 +413,7 @@
 
 </main>
 
-<!-- ───────────── Appendix: a sheet from the right when scripts run, plain sections at the bottom otherwise ───────────── -->
+<!-- ───────────── Appendix ───────────── -->
 <aside class="appendix sheet" id="appendix" aria-label="Appendix">
   <div class="sheet-body">
 
@@ -433,25 +448,7 @@
 
     <section class="app" id="app-rollout-decode">
       <h2>B · Qualitative rollout decoding</h2>
-      <p>To visualize imagined rollouts, we train a separate decoder that maps the 384-d DINOv2 CLS embedding back to a 224×224 RGB image. The world model, including its (EMA) image encoder, stays frozen. The decoder has 13M parameters. We train on single frames from the training split for 40k steps with batch size 64, with AdamW. The decoder does not take proprioceptive inputs.</p>
-      <figure>
-        <h4>Push-T</h4>
-        <div class="slot wide" data-src="static/videos/rollout/pusht_dinoft.mp4" data-still="still-pusht" hidden></div>
-        <div id="still-pusht">
-          <div class="plate"><img src="static/img/fig9_decoded_pusht.png" alt="Decoded Push-T rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
-          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/pusht_dinoft.mp4</code> and the video replaces it.</p>
-        </div>
-        <figcaption><b>Figure 9. Push-T rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 120-environment-step rollout.</figcaption>
-      </figure>
-      <figure>
-        <h4>Cube</h4>
-        <div class="slot wide" data-src="static/videos/rollout/cube_dinoft.mp4" data-still="still-cube" hidden></div>
-        <div id="still-cube">
-          <div class="plate"><img src="static/img/fig10_decoded_cube.png" alt="Decoded Cube rollout frames: ground truth, next-step baseline, and k-WM." width="1804" height="814"></div>
-          <p class="still-note">Still from the paper. Add <code>static/videos/rollout/cube_dinoft.mp4</code> and the video replaces it.</p>
-        </div>
-        <figcaption><b>Figure 10. Cube rollout.</b> Decoded latent of DINO FT with <i>k</i>-WM vs. next-step DINO FT, 120-environment-step rollout.</figcaption>
-      </figure>
+      <p>To visualize imagined rollouts, we train a separate decoder that maps the 384-d DINOv2 CLS embedding back to a 224×224 RGB image. The world model, including its (EMA) image encoder, stays frozen. The decoder has 13M parameters. We train on single frames from the training split for 40k steps with batch size 64, with AdamW. The decoder does not take proprioceptive inputs. The decoded rollouts are shown under <a href="#rollout-quality">Open-loop rollout quality</a>.</p>
     </section>
 
     <section class="app" id="app-theory">
