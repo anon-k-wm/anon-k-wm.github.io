@@ -131,7 +131,7 @@ a.more[aria-current] { background: var(--ink); border-color: var(--ink); color: 
 main p.lede { font-size: 1.1875rem; line-height: 1.55; max-width: 50rem; margin: 0 0 1.5rem; text-align: left; hyphens: manual; text-wrap: pretty; }
 
 /* Rows: the figure side (.fig) and its note. One column until the screen is wide enough for both. */
-.row + .row, .row + .clips { margin-top: 3rem; }
+.row + .row, .row + .clips, .clips + .row { margin-top: 3rem; }
 .fig { min-width: 0; }
 .fig > :first-child { margin-top: 0; }
 .fig > figure:last-child { margin-bottom: 0; }

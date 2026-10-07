@@ -126,12 +126,89 @@
 
 <!-- ───────────── Planning results ───────────── -->
 <section id="results">
-  <div class="row">
-    <div class="fig">
-      <div class="head"><h2>Planning results</h2><a class="more" href="#text-results">Read the text</a></div>
-      <p class="lede keep"><i>k</i>-WM matches or beats the next-step model it extends in most settings, and the gain is largest under gradient-based planning.</p>
+  <h2>Planning results</h2>
+  <p class="lede keep"><i>k</i>-WM matches or beats the next-step model it extends in most settings, and the gain is largest under gradient-based planning.</p>
 
-      <h3>Short horizon</h3>
+  <!-- Planning rollouts: one episode per environment, model class and planner (static/videos/README.txt) -->
+  <div class="clips" id="rollouts">
+    <div class="head"><h3>Planning rollouts</h3><a class="more" href="#app-env">Environments and datasets</a></div>
+    <p class="lede keep">One episode per environment at \(H{=}10\) (50 environment steps): the start and goal frames, then the plan found with the next-step baseline (\(k=1\)) and with <i>k</i>-WM (\(k=8\)), planned once and executed in the simulator without replanning. The frame turns green when the rollout ends at the goal and red when it does not.</p>
+
+    <div class="pickers">
+      <div class="segmented" id="model-picker" role="group" aria-label="World model class">
+        <button type="button" data-model="dinoft" aria-pressed="true">DINO FT</button>
+        <button type="button" data-model="dinowm" aria-pressed="false">DINO-WM</button>
+        <button type="button" data-model="lewm" aria-pressed="false">LeWM</button>
+      </div>
+      <div class="segmented" id="planner-picker" role="group" aria-label="Planner">
+        <button type="button" data-planner="cem" aria-pressed="true">CEM</button>
+        <button type="button" data-planner="gd" aria-pressed="false">GD</button>
+      </div>
+    </div>
+
+    <div class="env-grid">
+      <div class="env">
+        <h4>Push-T</h4>
+        <p>2D manipulation: an agent pushes a T-shaped block to a goal configuration.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="pusht" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="pusht" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="pusht" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="pusht" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Maze</h4>
+        <p>2D navigation: the agent navigates to a goal inside a maze.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="maze" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="maze" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="maze" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="maze" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Cube</h4>
+        <p>3D manipulation: a robot arm picks and places a cube.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="cube" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="cube" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="cube" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="cube" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+      <div class="env">
+        <h4>Reacher</h4>
+        <p>2D control: a two-joint arm reaches a target joint configuration.</p>
+        <div class="quad">
+          <div class="clip"><div class="clip-label">Start</div>
+            <div class="slot" data-env="reacher" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Goal</div>
+            <div class="slot" data-env="reacher" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
+            <div class="slot" data-env="reacher" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
+            <div class="slot" data-env="reacher" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row sub">
+    <div class="fig">
+      <div class="head"><h3>Short horizon</h3><a class="more" href="#text-results">Read the text</a></div>
       <p class="lede">Multi-horizon training performs on par with or better than its matched next-step baseline across most settings, despite receiving supervision over substantially longer prediction horizons.</p>
       <figure>
         <div class="table-scroll">
@@ -214,82 +291,6 @@
     </aside>
   </div>
 
-  <!-- Planning rollouts: one episode per environment, model class and planner (static/videos/README.txt) -->
-  <div class="clips" id="rollouts">
-    <div class="head"><h3>Planning rollouts</h3><a class="more" href="#app-env">Environments and datasets</a></div>
-    <p class="lede keep">One episode per environment at \(H{=}10\) (50 environment steps): the start and goal frames, then the plan found with the next-step baseline (\(k=1\)) and with <i>k</i>-WM (\(k=8\)), planned once and executed in the simulator without replanning. The frame turns green when the rollout ends at the goal and red when it does not.</p>
-
-    <div class="pickers">
-      <div class="segmented" id="model-picker" role="group" aria-label="World model class">
-        <button type="button" data-model="dinoft" aria-pressed="true">DINO FT</button>
-        <button type="button" data-model="dinowm" aria-pressed="false">DINO-WM</button>
-        <button type="button" data-model="lewm" aria-pressed="false">LeWM</button>
-      </div>
-      <div class="segmented" id="planner-picker" role="group" aria-label="Planner">
-        <button type="button" data-planner="cem" aria-pressed="true">CEM</button>
-        <button type="button" data-planner="gd" aria-pressed="false">GD</button>
-      </div>
-    </div>
-
-    <div class="env-grid">
-      <div class="env">
-        <h4>Push-T</h4>
-        <p>2D manipulation: an agent pushes a T-shaped block to a goal configuration.</p>
-        <div class="quad">
-          <div class="clip"><div class="clip-label">Start</div>
-            <div class="slot" data-env="pusht" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Goal</div>
-            <div class="slot" data-env="pusht" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
-            <div class="slot" data-env="pusht" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
-            <div class="slot" data-env="pusht" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-        </div>
-      </div>
-      <div class="env">
-        <h4>Maze</h4>
-        <p>2D navigation: the agent navigates to a goal inside a maze.</p>
-        <div class="quad">
-          <div class="clip"><div class="clip-label">Start</div>
-            <div class="slot" data-env="maze" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Goal</div>
-            <div class="slot" data-env="maze" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
-            <div class="slot" data-env="maze" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
-            <div class="slot" data-env="maze" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-        </div>
-      </div>
-      <div class="env">
-        <h4>Cube</h4>
-        <p>3D manipulation: a robot arm picks and places a cube.</p>
-        <div class="quad">
-          <div class="clip"><div class="clip-label">Start</div>
-            <div class="slot" data-env="cube" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Goal</div>
-            <div class="slot" data-env="cube" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
-            <div class="slot" data-env="cube" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
-            <div class="slot" data-env="cube" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-        </div>
-      </div>
-      <div class="env">
-        <h4>Reacher</h4>
-        <p>2D control: a two-joint arm reaches a target joint configuration.</p>
-        <div class="quad">
-          <div class="clip"><div class="clip-label">Start</div>
-            <div class="slot" data-env="reacher" data-kind="start"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Goal</div>
-            <div class="slot" data-env="reacher" data-kind="goal"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label">Next-step (\(k=1\))</div>
-            <div class="slot" data-env="reacher" data-kind="k1"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-          <div class="clip"><div class="clip-label ours"><i>k</i>-WM (\(k=8\))</div>
-            <div class="slot" data-env="reacher" data-kind="k8"><div class="empty"><span>Not rendered yet</span><code></code></div></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
 </section>
 
 <!-- ───────────── Rollout quality ───────────── -->
