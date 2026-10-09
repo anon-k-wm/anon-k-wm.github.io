@@ -399,6 +399,10 @@
         <div class="plate"><img src="static/img/fig7_representation.png" alt="Linear probe error and latent distance against state distance for DINO FT and LeWM as the training horizon grows." width="2200" height="980"></div>
         <figcaption><b>Figure 7. State alignment of the DINO FT (top) and LeWM (bottom) latents vs. training horizon.</b> (a, b) Fraction of the ground-truth state variance that cannot be explained by a linear probe from the latent representation (\(1-R^2\), Push-T states: T keypoints, Reacher states: arm pose), with one dash per trained model. (c, d) Latent squared distance, normalized such that the expected distance between a random pair of frames is 1, versus ground-truth state distance for pairs of frames matched on the remaining state variables (agent position on Push-T, second joint on Reacher). Darker curves indicate longer training horizons.</figcaption>
       </figure>
+      <figure>
+        <div class="plate"><img src="static/img/fig11_maze_anchor.png" alt="Maze cells coloured by latent distance to an anchor cell, for corridor distance, frozen DINOv2 CLS, and DINO FT trained at k = 1, 2, 4, 8 and 16." width="2200" height="1185"></div>
+        <figcaption><b>Figure 11. Latent distance to an anchor cell on Maze.</b> Each row uses one anchor cell (star). (a) Corridor distance from the anchor, in blocks. (b–g) Mean latent squared distance between the frames in each cell and the 30 frames nearest the anchor, normalized such that 1 is the distance between two random frames, for the frozen DINOv2 CLS embedding (b) and DINO FT trained with \(k=1,2,4,8,16\) (c–g). Walls are grey.</figcaption>
+      </figure>
     </div>
     <aside class="note" id="text-representation" aria-labelledby="text-representation-title">
       <div class="note-body">
