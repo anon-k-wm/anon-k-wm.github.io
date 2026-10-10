@@ -394,20 +394,21 @@
   <div class="row sub">
     <div class="fig">
       <div class="head"><h3 id="representation">What the multi-horizon objective teaches the encoder</h3><a class="more" href="#text-representation">Details</a></div>
-      <p class="lede">Longer-horizon training makes the encoder keep state information it previously represented weakly. Ground-truth state becomes increasingly linearly decodable as the training horizon grows on both Push-T and Reacher. Latent distance also tracks distance in state more faithfully with a longer training horizon, gradually on Push-T and through a sharp transition on Reacher.</p>
-      <figure>
-        <div class="plate"><img src="static/img/fig7_representation.png" alt="Linear probe error and latent distance against state distance for DINO FT and LeWM as the training horizon grows." width="2200" height="980"></div>
-        <figcaption><b>Figure 7. State alignment of the DINO FT (top) and LeWM (bottom) latents vs. training horizon.</b> (a, b) Fraction of the ground-truth state variance that cannot be explained by a linear probe from the latent representation (\(1-R^2\), Push-T states: T keypoints, Reacher states: arm pose), with one dash per trained model. (c, d) Latent squared distance, normalized such that the expected distance between a random pair of frames is 1, versus ground-truth state distance for pairs of frames matched on the remaining state variables (agent position on Push-T, second joint on Reacher). Darker curves indicate longer training horizons.</figcaption>
-      </figure>
+      <p class="lede">Longer-horizon training makes the encoder keep state information it previously represented weakly. On Maze, latent distance follows the corridor distance more closely as the training horizon grows. On Push-T and Reacher, ground-truth state becomes increasingly linearly decodable, and latent distance tracks distance in state more faithfully, gradually on Push-T and through a sharp transition on Reacher.</p>
       <figure>
         <div class="plate"><img src="static/img/fig11_maze_anchor.png" alt="Maze cells coloured by latent distance to an anchor cell, for corridor distance, frozen DINOv2 CLS, and DINO FT trained at k = 1, 2, 4, 8 and 16." width="2200" height="1185"></div>
         <figcaption><b>Figure 11. Latent distance to an anchor cell on Maze.</b> Each row uses one anchor cell (star). (a) Corridor distance from the anchor, in blocks. (b–g) Mean latent squared distance between the frames in each cell and the 30 frames nearest the anchor, normalized such that 1 is the distance between two random frames, for the frozen DINOv2 CLS embedding (b) and DINO FT trained with \(k=1,2,4,8,16\) (c–g). Walls are grey.</figcaption>
+      </figure>
+      <figure>
+        <div class="plate"><img src="static/img/fig7_representation.png" alt="Linear probe error and latent distance against state distance for DINO FT and LeWM as the training horizon grows." width="2200" height="980"></div>
+        <figcaption><b>Figure 7. State alignment of the DINO FT (top) and LeWM (bottom) latents vs. training horizon.</b> (a, b) Fraction of the ground-truth state variance that cannot be explained by a linear probe from the latent representation (\(1-R^2\), Push-T states: T keypoints, Reacher states: arm pose), with one dash per trained model. (c, d) Latent squared distance, normalized such that the expected distance between a random pair of frames is 1, versus ground-truth state distance for pairs of frames matched on the remaining state variables (agent position on Push-T, second joint on Reacher). Darker curves indicate longer training horizons.</figcaption>
       </figure>
     </div>
     <aside class="note" id="text-representation" aria-labelledby="text-representation-title">
       <div class="note-body">
         <h2 class="note-title" id="text-representation-title">What the multi-horizon objective teaches the encoder</h2>
-        <p>DINO FT has no extra latent regularizer, so it isolates the effect of the training horizon. Its linear-probe error falls steadily with \(k\). LeWM is U-shaped, matching its higher sensitivity to \(k\) in Figure 6.</p>
+        <p>Figure 11 uses the visual (CLS) latent of DINO FT only, so the frozen encoder is on the same footing as the trained ones. At \(k=1\) the map repeats the same pattern in every block of the maze. As \(k\) grows, the region close to the anchor follows the corridors around it.</p>
+        <p>In Figure 7, DINO FT has no extra latent regularizer, so it isolates the effect of the training horizon. Its linear-probe error falls steadily with \(k\). LeWM is U-shaped, matching its higher sensitivity to \(k\) in Figure 6.</p>
         <p>We compare latent distances with ground-truth state distances while matching the other state variables. On Push-T the relation becomes more monotonic with \(k\). Reacher shows a sharp transition. The second joint is well organized at all horizons, while the first is poorly separated near 0° and 180° until \(k\) grows. Probe error drops by nearly an order of magnitude around \(k=3\), with seeds on either side, before planning success jumps around \(k=5\) (Figure 6).</p>
         <p>A linear stochastic model shows an analogous transition (<a class="app-link" href="#app-theory">Appendix C</a>).</p>
       </div>
